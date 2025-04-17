@@ -67,6 +67,12 @@ export default function Navbar() {
       >
         Critics
       </Link>
+      <Link
+        href="/community"
+        className={`text-lg font-medium ${pathname === "/community" ? "text-primary" : "text-muted-foreground"}`}
+      >
+        Community
+      </Link>
       {isAuthenticated ? (
         <>
           <Link
@@ -110,6 +116,12 @@ export default function Navbar() {
         className={`font-medium ${pathname === "/critics" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
       >
         Critics
+      </Link>
+      <Link
+        href="/community"
+        className={`font-medium ${pathname === "/community" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+      >
+        Community
       </Link>
     </nav>
   ), [pathname]);

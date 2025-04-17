@@ -229,9 +229,18 @@ export default function Home() {
               Create an account to share your reviews, follow other critics, and build your reputation in the film
               community.
             </p>
-            {!isAuthenticated && (
-              <Button asChild size="lg">
-                <Link href="/register">Sign Up Now</Link>
+            {!isAuthenticated ? (
+              <div className="space-x-3">
+                <Button asChild size="lg">
+                  <Link href="/login?register=true">Sign Up Now</Link>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <Link href="/community">Browse Community</Link>
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="default" size="lg">
+                <Link href="/community">Explore Community</Link>
               </Button>
             )}
           </div>
