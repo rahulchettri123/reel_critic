@@ -45,6 +45,22 @@ const getUserProfile = async (userId: string) => {
   }
 }
 
+// Calculate age from date of birth
+const calculateAge = (dateOfBirth: string): number => {
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+  
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+  
+  // If birthday hasn't occurred yet this year, subtract 1 from age
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+};
+
 export default function ProfilePage() {
   const params = useParams()
   const router = useRouter()
@@ -147,7 +163,7 @@ export default function ProfilePage() {
       
       if (response.ok) {
         // Toggle following state
-    setIsFollowing(!isFollowing)
+        setIsFollowing(!isFollowing)
         
         // Update follower count in profile
         setProfile(prev => ({
@@ -175,22 +191,30 @@ export default function ProfilePage() {
   // Fetch movie details for favorites and watchlist
   const fetchMovieDetails = async (movieId: string) => {
     try {
-      console.log(`Fetching details for movie ID: ${movieId}`)
-      const response = await fetch(`/api/movies/details?id=${movieId}`)
-      
-      if (!response.ok) {
-        console.error(`Error response (${response.status}) fetching movie ${movieId}`)
-        throw new Error('Failed to fetch movie details')
+      // Skip fetching if movieId is invalid
+      if (!movieId || typeof movieId !== 'string' || movieId.trim() === '') {
+        console.warn('Skipping fetch for invalid movieId:', movieId);
+        return null;
       }
       
-      const data = await response.json()
+      console.log(`Fetching details for movie ID: ${movieId}`);
+      const response = await fetch(`/api/movies/details?id=${movieId}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        console.error(`Error response (${response.status}) fetching movie ${movieId}`);
+        throw new Error('Failed to fetch movie details');
+      }
+      
+      const data = await response.json();
       
       // Check if we have a proper movie object with required fields
       if (data.movie && data.movie.title) {
-        console.log(`Movie data received for ${movieId}:`, data.movie.title)
-        return data.movie
+        console.log(`Movie data received for ${movieId}:`, data.movie.title);
+        return data.movie;
       } else {
-        console.error(`Movie data invalid for ${movieId}:`, data)
+        console.warn(`Movie data invalid for ${movieId}, returning placeholder`);
         // Return a placeholder movie object with better formatting
         return {
           id: movieId,
@@ -199,10 +223,10 @@ export default function ProfilePage() {
           year: 'Unknown',
           description: 'Movie information could not be loaded',
           genres: []
-        }
+        };
       }
     } catch (error) {
-      console.error(`Error fetching details for movie ${movieId}:`, error)
+      console.error(`Error fetching details for movie ${movieId}:`, error);
       // Return a placeholder movie object on error
       return {
         id: movieId,
@@ -211,7 +235,7 @@ export default function ProfilePage() {
         year: 'Unknown',
         description: 'Movie information could not be loaded',
         genres: []
-      }
+      };
     }
   }
 
@@ -221,8 +245,8 @@ export default function ProfilePage() {
     if (!ids || ids.length === 0) return;
     
     if (favoriteMovies.length === 0) {
-      console.log("Loading favorites data for IDs:", ids)
-      setLoadingFavorites(true)
+      console.log("Loading favorites data for IDs:", ids);
+      setLoadingFavorites(true);
       try {
         // Process in batches of 3 to avoid overloading the server
         const results = [];
@@ -230,19 +254,23 @@ export default function ProfilePage() {
           const batch = ids.slice(i, i + 3);
           const batchPromises = batch.map(movieId => fetchMovieDetails(movieId));
           const batchResults = await Promise.all(batchPromises);
-          results.push(...batchResults);
+          
+          // Filter out null results from invalid movies
+          const validResults = batchResults.filter(movie => movie !== null);
+          results.push(...validResults);
+          
           // Small delay between batches
           if (i + 3 < ids.length) {
             await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
         
-        console.log(`Loaded ${results.length} favorite movies`)
+        console.log(`Loaded ${results.length} favorite movies`);
         setFavoriteMovies(results);
       } catch (error) {
-        console.error("Error loading favorites data:", error)
+        console.error("Error loading favorites data:", error);
       } finally {
-        setLoadingFavorites(false)
+        setLoadingFavorites(false);
       }
     }
   }
@@ -253,8 +281,8 @@ export default function ProfilePage() {
     if (!ids || ids.length === 0) return;
     
     if (watchlistMovies.length === 0) {
-      console.log("Loading watchlist data for IDs:", ids)
-      setLoadingWatchlist(true)
+      console.log("Loading watchlist data for IDs:", ids);
+      setLoadingWatchlist(true);
       try {
         // Process in batches of 3 to avoid overloading the server
         const results = [];
@@ -262,19 +290,23 @@ export default function ProfilePage() {
           const batch = ids.slice(i, i + 3);
           const batchPromises = batch.map(movieId => fetchMovieDetails(movieId));
           const batchResults = await Promise.all(batchPromises);
-          results.push(...batchResults);
+          
+          // Filter out null results from invalid movies
+          const validResults = batchResults.filter(movie => movie !== null);
+          results.push(...validResults);
+          
           // Small delay between batches
           if (i + 3 < ids.length) {
             await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
         
-        console.log(`Loaded ${results.length} watchlist movies`)
+        console.log(`Loaded ${results.length} watchlist movies`);
         setWatchlistMovies(results);
       } catch (error) {
-        console.error("Error loading watchlist data:", error)
+        console.error("Error loading watchlist data:", error);
       } finally {
-        setLoadingWatchlist(false)
+        setLoadingWatchlist(false);
       }
     }
   }
@@ -588,6 +620,25 @@ export default function ProfilePage() {
 
             <div className="space-y-3">
               <p className="text-sm line-clamp-3 md:line-clamp-none">{profile.bio || "No bio provided."}</p>
+
+              {/* Show email and age for authenticated users only */}
+              {isAuthenticated && (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  {profile.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Email:</span>
+                      <span>{profile.email}</span>
+                    </div>
+                  )}
+                  
+                  {profile.dateOfBirth && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Age:</span>
+                      <span>{calculateAge(profile.dateOfBirth)} years old</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Social Media Links */}
               {profile.social && Object.values(profile.social).some(value => value) && (

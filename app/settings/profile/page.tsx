@@ -27,6 +27,7 @@ export default function ProfileSettings() {
     location: "",
     website: "",
     avatar: "",
+    dateOfBirth: "",
     social: {
       twitter: "",
       instagram: "",
@@ -61,6 +62,7 @@ export default function ProfileSettings() {
         location: user.location || "",
         website: user.website || "",
         avatar: user.avatar || "",
+        dateOfBirth: user.dateOfBirth || "",
         social: {
           twitter: user.social?.twitter || "",
           instagram: user.social?.instagram || "",
@@ -347,6 +349,20 @@ export default function ProfileSettings() {
                   onChange={handleChange}
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input 
+                id="dateOfBirth" 
+                name="dateOfBirth" 
+                type="date" 
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-muted-foreground">
+                This will be used to show your age on your profile. Only visible to logged-in users.
+              </p>
             </div>
           </CardContent>
         </Card>

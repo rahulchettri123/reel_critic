@@ -147,7 +147,8 @@ export async function PUT(request: Request) {
         "avatar",
         "cover",
         "social",
-        "preferences"
+        "preferences",
+        "dateOfBirth"
       ]
       
       // Filter out disallowed fields

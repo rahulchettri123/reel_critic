@@ -3,7 +3,10 @@ import type { NextRequest } from "next/server"
 import { jwtVerify, importJWK } from "jose"
 
 // Routes that require authentication
-const protectedRoutes = ["/profile", "/settings", "/reviews/new"]
+const protectedRoutes = ["/settings", "/reviews/new"]
+
+// User profile without an ID parameter is considered protected (user's own profile)
+const currentUserProfileRoute = "/profile"
 
 // Routes that are only accessible to non-authenticated users
 const authRoutes = ["/login", "/register"]
@@ -60,7 +63,11 @@ export async function middleware(request: NextRequest) {
 
   // Check if the route is protected and user is not authenticated
   const isProtectedRoute = protectedRoutes.some((route) => path.startsWith(route))
-  if (isProtectedRoute && !isAuthenticated) {
+  
+  // Special case for /profile without an ID (current user's profile)
+  const isCurrentUserProfile = path === currentUserProfileRoute || path === `${currentUserProfileRoute}/`
+  
+  if ((isProtectedRoute || isCurrentUserProfile) && !isAuthenticated) {
     console.log(`Redirecting to login from protected route: ${path}`)
     const url = new URL("/login", request.url)
     url.searchParams.set("callbackUrl", encodeURI(request.url))
@@ -77,9 +84,10 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Update the matcher to include ALL routes where actions like reviews, profile etc. might be protected
+// Update the matcher to include routes that need authentication checks
 export const config = {
   matcher: [
+    "/profile", 
     "/profile/:path*", 
     "/settings/:path*", 
     "/reviews/:path*",
