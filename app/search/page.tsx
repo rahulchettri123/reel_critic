@@ -88,18 +88,6 @@ export default function SearchPage() {
           {results.length > 0 && <p className="text-sm text-muted-foreground">{results.length} results found</p>}
         </div>
         <div className="flex items-center gap-2">
-          {initialQuery && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1"
-              onClick={() => handleSearch(initialQuery, true)}
-              disabled={isRefreshing}
-            >
-              <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              {isRefreshing ? "Refreshing..." : "Refresh Results"}
-            </Button>
-          )}
           <Tabs value={view} onValueChange={(v) => setView(v as "grid" | "list")}>
             <TabsList>
               <TabsTrigger value="grid">Grid</TabsTrigger>

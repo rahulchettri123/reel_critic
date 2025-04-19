@@ -19,6 +19,7 @@ import { SearchAutocomplete } from "@/components/search-autocomplete"
 
 export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isNavOpen, setIsNavOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { user, isAuthenticated, logout } = useAuth()
@@ -38,6 +39,7 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    setIsNavOpen(false);
     logout();
     router.push("/");
   }, [logout, router]);
@@ -46,30 +48,39 @@ export default function Navbar() {
     router.push("/login");
   }, [router]);
 
+  // Close nav drawer when clicking a link
+  const handleNavLinkClick = useCallback(() => {
+    setIsNavOpen(false);
+  }, []);
+
   // Memoize the mobile nav items to avoid recreating on every render
   const mobileNavItems = useMemo(() => (
     <nav className="flex flex-col gap-4 mt-8">
       <Link
         href="/"
         className={`text-lg font-medium ${pathname === "/" ? "text-primary" : "text-muted-foreground"}`}
+        onClick={handleNavLinkClick}
       >
         Home
       </Link>
       <Link
         href="/search"
         className={`text-lg font-medium ${pathname === "/search" ? "text-primary" : "text-muted-foreground"}`}
+        onClick={handleNavLinkClick}
       >
         Discover
       </Link>
       <Link
         href="/critics"
         className={`text-lg font-medium ${pathname === "/critics" ? "text-primary" : "text-muted-foreground"}`}
+        onClick={handleNavLinkClick}
       >
         Critics
       </Link>
       <Link
         href="/community"
         className={`text-lg font-medium ${pathname === "/community" ? "text-primary" : "text-muted-foreground"}`}
+        onClick={handleNavLinkClick}
       >
         Community
       </Link>
@@ -78,10 +89,11 @@ export default function Navbar() {
           <Link
             href={`/profile/${user?._id}`}
             className={`text-lg font-medium ${pathname === `/profile/${user?._id}` ? "text-primary" : "text-muted-foreground"}`}
+            onClick={handleNavLinkClick}
           >
             Profile
           </Link>
-          <button onClick={logout} className="text-lg font-medium text-muted-foreground text-left">
+          <button onClick={handleLogout} className="text-lg font-medium text-muted-foreground text-left">
             Logout
           </button>
         </>
@@ -89,12 +101,13 @@ export default function Navbar() {
         <Link
           href="/login"
           className={`text-lg font-medium ${pathname === "/login" ? "text-primary" : "text-muted-foreground"}`}
+          onClick={handleNavLinkClick}
         >
           Login / Register
         </Link>
       )}
     </nav>
-  ), [pathname, isAuthenticated, user, logout]);
+  ), [pathname, isAuthenticated, user, logout, handleNavLinkClick]);
   
   // Memoize desktop nav items
   const desktopNavItems = useMemo(() => (
@@ -156,7 +169,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        <Sheet>
+        <Sheet open={isNavOpen} onOpenChange={setIsNavOpen}>
           <SheetTrigger asChild className="lg:hidden">
             <Button variant="ghost" size="icon" className="mr-1">
               <Menu className="h-5 w-5" />

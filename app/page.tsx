@@ -76,19 +76,39 @@ export default function Home() {
 
         if (data.movies && Array.isArray(data.movies)) {
           console.log(`Fetched ${data.movies.length} upcoming movies for carousel`)
-          setUpcomingMovies(data.movies.map((movie: any) => ({
-            id: movie.id || movie.imdbId || "unknown",
-            title: movie.title || movie.primaryTitle || movie.originalTitle || "Unknown Title",
-            poster:
-              movie.poster ||
-              movie.primaryImage ||
-              `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(movie.title || movie.primaryTitle || "Movie")}`,
-            year: movie.year || movie.startYear || movie.releaseDate?.split("-")[0] || "Unknown",
-            rating: movie.rating || movie.averageRating || "N/A",
-            genres: movie.genres || [],
-            releaseDate: movie.releaseDate,
-            localRating: movie.localRating || null,
-          })))
+          // Process the movie data and convert to the right format
+          const processedMovies = data.movies.map((movie: any) => {
+            // Ensure we have a title, even if all source fields are null
+            const safeTitle = movie.title || 
+                            movie.primaryTitle || 
+                            movie.originalTitle || 
+                            (movie.id ? `Movie ID: ${movie.id}` : "Unknown Movie");
+            
+            return {
+              id: movie.id || movie.imdbId || "unknown",
+              title: safeTitle,
+              poster:
+                movie.poster ||
+                movie.primaryImage ||
+                `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(safeTitle)}`,
+              year: movie.year || movie.startYear || movie.releaseDate?.split("-")[0] || "Unknown",
+              rating: movie.rating || movie.averageRating || "N/A",
+              genres: movie.genres || [],
+              releaseDate: movie.releaseDate,
+              localRating: movie.localRating || null,
+            };
+          });
+          
+          // Sort movies by release date (soonest first)
+          const sortedMovies = processedMovies.sort((a: any, b: any) => {
+            // If either movie has no release date, put it at the end
+            if (!a.releaseDate) return 1;
+            if (!b.releaseDate) return -1;
+            // Sort by release date (ascending)
+            return new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime();
+          });
+          
+          setUpcomingMovies(sortedMovies);
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -160,7 +180,7 @@ export default function Home() {
               </Button>
               {!isAuthenticated && (
                 <Button asChild variant="outline" size="lg">
-                  <Link href="/register">Join Community</Link>
+                  <Link href="/login?register=true">Join Community</Link>
                 </Button>
               )}
             </div>

@@ -951,30 +951,6 @@ export default function MovieDetailsPage() {
                   Write Review
                 </Button>
               )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-1 ml-auto"
-                onClick={() => fetchMovieDetails(true)}
-                disabled={isRefreshing}
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                {isRefreshing ? "Refreshing..." : "Refresh Data"}
-              </Button>
             </div>
 
             <div className="space-y-4">

@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,13 +15,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Film, Mail, User, UserPlus } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { CookieReset } from "@/components/cookie-reset"
 
 export default function AuthPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login, register } = useAuth()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
+
+  // Check for register parameter in URL
+  useEffect(() => {
+    if (searchParams.get("register") === "true") {
+      setActiveTab("register")
+    }
+  }, [searchParams])
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("")
@@ -261,10 +268,6 @@ export default function AuthPage() {
                       <p>Password: password123</p>
                     </div>
                   </form>
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Having trouble logging in?</p>
-                    <CookieReset />
-                  </div>
                 </CardContent>
                 <CardFooter className="flex flex-col items-center gap-2">
                   <div className="text-sm text-muted-foreground">

@@ -39,10 +39,12 @@ export function MovieCarousel({
   showBadges = true,
   itemsPerView = 6, // Default to 6 items per view
 }: MovieCarouselProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const carouselRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [currentPage, setCurrentPage] = useState(0)
+  const [touchStartX, setTouchStartX] = useState(0)
+  const [isTouching, setIsTouching] = useState(false)
   
   // Responsive items per view based on screen size
   const [responsiveItemsPerView, setResponsiveItemsPerView] = useState(itemsPerView)
@@ -83,7 +85,11 @@ export function MovieCarousel({
     checkScrollButtons()
     // Reset to first page when movies change
     setCurrentPage(0)
-  }, [movies, totalPages])
+  }, [movies, totalPages, responsiveItemsPerView])
+
+  useEffect(() => {
+    checkScrollButtons()
+  }, [currentPage, totalPages])
 
   const scroll = (direction: "left" | "right") => {
     if (direction === "left" && currentPage > 0) {
@@ -91,6 +97,44 @@ export function MovieCarousel({
     } else if (direction === "right" && currentPage < totalPages - 1) {
       setCurrentPage(prevPage => prevPage + 1)
     }
+  }
+
+  // Touch event handlers for mobile swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX)
+    setIsTouching(true)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isTouching) return
+    
+    const touchCurrentX = e.touches[0].clientX
+    const diff = touchStartX - touchCurrentX
+    
+    // Prevent default to avoid page scrolling while swiping
+    if (Math.abs(diff) > 5) {
+      e.preventDefault()
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isTouching) return
+    
+    const touchEndX = e.changedTouches[0].clientX
+    const diff = touchStartX - touchEndX
+    
+    // If swipe distance is significant enough (40px)
+    if (Math.abs(diff) > 40) {
+      if (diff > 0 && canScrollRight) {
+        // Swiped left, go right
+        scroll("right")
+      } else if (diff < 0 && canScrollLeft) {
+        // Swiped right, go left
+        scroll("left")
+      }
+    }
+    
+    setIsTouching(false)
   }
 
   // Format release date to "Coming MMM DD, YYYY"
@@ -109,20 +153,11 @@ export function MovieCarousel({
     }
   }
 
-  // Get current page of movies
-  const getCurrentPageMovies = () => {
-    const startIdx = currentPage * responsiveItemsPerView
-    const endIdx = startIdx + responsiveItemsPerView
-    return movies.slice(startIdx, endIdx)
-  }
-
-  // Calculate item width based on container width and items per view
-  const getItemWidthStyle = () => {
-    // Calculate percentage width with a small gap
+  // Calculate the transform style for smooth sliding
+  const getTransformStyle = () => {
     return {
-      width: `calc(${100 / responsiveItemsPerView}% - 12px)`,
-      marginLeft: '6px',
-      marginRight: '6px'
+      transform: `translateX(-${currentPage * 100}%)`,
+      transition: 'transform 0.4s ease-in-out'
     }
   }
 
@@ -169,71 +204,84 @@ export function MovieCarousel({
         </div>
       </div>
       
-      <div
-        ref={containerRef}
-        className="flex flex-wrap overflow-hidden pb-4"
+      {/* Carousel container with touch handlers */}
+      <div 
+        ref={carouselRef}
+        className="overflow-hidden pb-4"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        {getCurrentPageMovies().map((movie) => (
-          <Link
-            key={movie.id}
-            href={`/details/${movie.id}`}
-            className="group/card flex-none transition-all hover:scale-105"
-            style={getItemWidthStyle()}
-          >
-            <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
-              {movie.poster ? (
-                <Image
-                  src={movie.poster}
-                  alt={movie.title || 'Movie poster'}
-                  fill
-                  sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
-                  className="object-cover transition-transform group-hover/card:scale-105"
-                  priority={currentPage === 0} // Priority load first page
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Film className="h-10 w-10 text-muted-foreground" />
-                </div>
-              )}
-              
-              {/* Release date badge */}
-              {movie.releaseDate && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                  <p className="text-xs text-white font-medium">
-                    {formatReleaseDate(movie.releaseDate)}
-                  </p>
-                </div>
-              )}
-              
-              {/* Rating badge */}
-              {movie.localRating && movie.localRating.count > 0 && (
-                <div className="absolute top-2 right-2 bg-black/60 rounded-md px-1.5 py-1 flex items-center">
-                  <Star className="h-3 w-3 text-primary fill-primary mr-0.5" />
-                  <span className="text-xs text-white font-medium">{movie.localRating.average}/5</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-2">
-              <h3 className="font-medium text-sm line-clamp-1 group-hover/card:text-primary transition-colors">
-                {movie.title}
-              </h3>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <span>{movie.year || "Coming Soon"}</span>
+        <div 
+          className="flex"
+          style={getTransformStyle()}
+        >
+          {movies.map((movie) => (
+            <Link
+              key={movie.id}
+              href={`/details/${movie.id}`}
+              className="group/card flex-none transition-all hover:scale-105"
+              style={{ 
+                width: `calc(${100 / responsiveItemsPerView}% - 12px)`,
+                marginLeft: '6px',
+                marginRight: '6px'
+              }}
+            >
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
+                {movie.poster ? (
+                  <Image
+                    src={movie.poster}
+                    alt={movie.title || 'Movie poster'}
+                    fill
+                    sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
+                    className="object-cover transition-transform group-hover/card:scale-105"
+                    priority={currentPage === 0} // Priority load first page
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Film className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                )}
+                
+                {/* Release date badge */}
+                {movie.releaseDate && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                    <p className="text-xs text-white font-medium">
+                      {formatReleaseDate(movie.releaseDate)}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Rating badge */}
+                {movie.localRating && movie.localRating.count > 0 && (
+                  <div className="absolute top-2 right-2 bg-black/60 rounded-md px-1.5 py-1 flex items-center">
+                    <Star className="h-3 w-3 text-primary fill-primary mr-0.5" />
+                    <span className="text-xs text-white font-medium">{movie.localRating.average}/5</span>
+                  </div>
+                )}
               </div>
               
-              {showBadges && movie.genres && movie.genres.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1 max-w-full overflow-hidden">
-                  {movie.genres.slice(0, 2).map((genre, i) => (
-                    <Badge key={i} variant="outline" className="px-1 text-[10px] h-4 truncate">
-                      {genre}
-                    </Badge>
-                  ))}
+              <div className="mt-2">
+                <h3 className="font-medium text-sm line-clamp-1 group-hover/card:text-primary transition-colors">
+                  {movie.title}
+                </h3>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  <span>{movie.year || "Coming Soon"}</span>
                 </div>
-              )}
-            </div>
-          </Link>
-        ))}
+                
+                {showBadges && movie.genres && movie.genres.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1 max-w-full overflow-hidden">
+                    {movie.genres.slice(0, 2).map((genre, i) => (
+                      <Badge key={i} variant="outline" className="px-1 text-[10px] h-4 truncate">
+                        {genre}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )
