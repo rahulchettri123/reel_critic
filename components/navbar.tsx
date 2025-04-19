@@ -243,12 +243,6 @@ export default function Navbar() {
               Login
             </Button>
           )}
-          {!isAuthenticated && (
-            <Button variant="ghost" size="icon" className="sm:hidden" onClick={handleLogin}>
-              <User className="h-5 w-5" />
-              <span className="sr-only">Login</span>
-            </Button>
-          )}
         </div>
       </div>
     </header>

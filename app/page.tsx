@@ -39,21 +39,29 @@ export default function Home() {
 
         if (data.movies && Array.isArray(data.movies)) {
           // Process the movie data to ensure consistent format
-          const processedMovies = data.movies.map((movie: any) => ({
-            id: movie.id || movie.imdbId || "unknown",
-            title: movie.title || movie.primaryTitle || movie.originalTitle || "Unknown Title",
-            poster:
-              movie.poster ||
-              movie.primaryImage ||
-              `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(movie.title || movie.primaryTitle || "Movie")}`,
-            year: movie.year || movie.startYear || movie.releaseDate?.split("-")[0] || "Unknown",
-            rating: movie.rating || movie.averageRating || "N/A",
-            genres: movie.genres || [],
-            localRating: movie.localRating || null,
-          }))
-
-          console.log(`Fetched ${processedMovies.length} trending movies for carousel`)
-          setPopularMovies(processedMovies)
+          const processedMovies = data.movies.map((movie: any) => {
+            const safeTitle = movie.title || movie.primaryTitle || movie.originalTitle || "Unknown Title";
+            const posterImage = movie.poster || movie.primaryImage;
+            
+            return {
+              id: movie.id || movie.imdbId || "unknown",
+              title: safeTitle,
+              poster: posterImage || `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(safeTitle)}`,
+              year: movie.year || movie.startYear || movie.releaseDate?.split("-")[0] || "Unknown",
+              rating: movie.rating || movie.averageRating || "N/A",
+              genres: movie.genres || [],
+              localRating: movie.localRating || null,
+              // Track if this movie has a real title and image
+              hasValidTitle: Boolean(movie.title || movie.primaryTitle || movie.originalTitle),
+              hasValidPoster: Boolean(posterImage)
+            }
+          })
+          
+          // Filter out movies without proper titles or images
+          const filteredMovies = processedMovies.filter((movie: any) => movie.hasValidTitle && movie.hasValidPoster);
+          
+          console.log(`Fetched ${processedMovies.length} trending movies, filtered out ${processedMovies.length - filteredMovies.length} missing title/image`)
+          setPopularMovies(filteredMovies)
         }
       } catch (error) {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
@@ -84,23 +92,30 @@ export default function Home() {
                             movie.originalTitle || 
                             (movie.id ? `Movie ID: ${movie.id}` : "Unknown Movie");
             
+            const posterImage = movie.poster || movie.primaryImage;
+            
             return {
               id: movie.id || movie.imdbId || "unknown",
               title: safeTitle,
-              poster:
-                movie.poster ||
-                movie.primaryImage ||
-                `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(safeTitle)}`,
+              poster: posterImage || `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(safeTitle)}`,
               year: movie.year || movie.startYear || movie.releaseDate?.split("-")[0] || "Unknown",
               rating: movie.rating || movie.averageRating || "N/A",
               genres: movie.genres || [],
               releaseDate: movie.releaseDate,
               localRating: movie.localRating || null,
+              // Track if this movie has a real title and image
+              hasValidTitle: Boolean(movie.title || movie.primaryTitle || movie.originalTitle),
+              hasValidPoster: Boolean(posterImage)
             };
           });
           
+          // Filter out movies without proper titles or images
+          const filteredMovies = processedMovies.filter((movie: any) => movie.hasValidTitle && movie.hasValidPoster);
+          
+          console.log(`Filtered out ${processedMovies.length - filteredMovies.length} movies without titles or images`);
+          
           // Sort movies by release date (soonest first)
-          const sortedMovies = processedMovies.sort((a: any, b: any) => {
+          const sortedMovies = filteredMovies.sort((a: any, b: any) => {
             // If either movie has no release date, put it at the end
             if (!a.releaseDate) return 1;
             if (!b.releaseDate) return -1;
