@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -16,7 +16,8 @@ import { Film, Mail, User, UserPlus } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
-export default function AuthPage() {
+// Component that uses useSearchParams
+function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, register } = useAuth()
@@ -251,36 +252,17 @@ export default function AuthPage() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="remember" />
-                      <Label htmlFor="remember" className="text-xs md:text-sm">
-                        Remember me
-                      </Label>
+                      <Label htmlFor="remember" className="text-xs md:text-sm font-normal">Remember me</Label>
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoginLoading || !isFormValid}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={!isFormValid || isLoginLoading}
                     >
-                      {isLoginLoading ? "Logging in..." : "Login"}
+                      {isLoginLoading ? "Logging in..." : "Log in"}
                     </Button>
-                    <div className="text-xs text-muted-foreground mt-2">
-                      <p>Use these test credentials:</p>
-                      <p>Email: test@example.com</p>
-                      <p>Password: password123</p>
-                    </div>
                   </form>
                 </CardContent>
-                <CardFooter className="flex flex-col items-center gap-2">
-                  <div className="text-sm text-muted-foreground">
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      className="text-primary hover:underline"
-                      onClick={() => setActiveTab("register")}
-                    >
-                      Register
-                    </button>
-                  </div>
-                </CardFooter>
               </Card>
             </TabsContent>
 
@@ -288,20 +270,23 @@ export default function AuthPage() {
               <Card className="border-0 shadow-none md:border md:shadow">
                 <CardHeader className="pb-2 pt-2 md:pt-6 md:pb-6">
                   <CardTitle className="text-xl">Create an account</CardTitle>
-                  <CardDescription className="text-sm">Join our community to start reviewing movies</CardDescription>
+                  <CardDescription className="text-sm">Join the community and start reviewing</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleRegister} className="space-y-3 md:space-y-4">
                     <div className="space-y-1 md:space-y-2">
-                      <Label htmlFor="name" className="text-sm">Full Name</Label>
+                      <Label htmlFor="full-name" className="text-sm">Full Name</Label>
                       <Input
-                        id="name"
+                        id="full-name"
+                        type="text"
                         placeholder="John Doe"
                         value={registerName}
                         onChange={(e) => setRegisterName(e.target.value)}
                         required
+                        autoComplete="name"
                       />
                     </div>
+
                     <div className="space-y-1 md:space-y-2">
                       <Label htmlFor="register-email" className="text-sm">Email</Label>
                       <Input
@@ -311,81 +296,79 @@ export default function AuthPage() {
                         value={registerEmail}
                         onChange={(e) => setRegisterEmail(e.target.value)}
                         required
+                        autoComplete="email"
                       />
                     </div>
+
                     <div className="space-y-1 md:space-y-2">
                       <Label htmlFor="username" className="text-sm">Username</Label>
                       <Input
                         id="username"
+                        type="text"
                         placeholder="johndoe"
                         value={registerUsername}
                         onChange={(e) => setRegisterUsername(e.target.value)}
                         required
+                        autoComplete="username"
                       />
                     </div>
-                    <div className="grid grid-cols-1 gap-3 md:gap-4">
-                      <div className="space-y-1 md:space-y-2">
-                        <Label htmlFor="new-password" className="text-sm">Password</Label>
-                        <Input
-                          id="new-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={registerPassword}
-                          onChange={(e) => setRegisterPassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1 md:space-y-2">
-                        <Label htmlFor="confirm-password" className="text-sm">Confirm Password</Label>
-                        <Input
-                          id="confirm-password"
-                          type="password"
-                          placeholder="••••••••"
-                          value={registerConfirmPassword}
-                          onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+
                     <div className="space-y-1 md:space-y-2">
+                      <Label htmlFor="register-password" className="text-sm">Password</Label>
+                      <Input
+                        id="register-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                        required
+                        autoComplete="new-password"
+                      />
+                    </div>
+
+                    <div className="space-y-1 md:space-y-2">
+                      <Label htmlFor="confirm-password" className="text-sm">Confirm Password</Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={registerConfirmPassword}
+                        onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                        required
+                        autoComplete="new-password"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
                       <Label className="text-sm">Account Type</Label>
                       <div className="flex gap-4">
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="critic"
-                            name="role"
-                            checked={userRole === "critic"}
-                            onChange={() => setUserRole("critic")}
-                          />
-                          <Label htmlFor="critic" className="text-xs md:text-sm">Critic</Label>
+                          <Checkbox id="viewer" checked={userRole === "viewer"} onCheckedChange={() => setUserRole("viewer")} />
+                          <Label htmlFor="viewer" className="text-xs md:text-sm font-normal">Viewer</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            id="viewer"
-                            name="role"
-                            checked={userRole === "viewer"}
-                            onChange={() => setUserRole("viewer")}
-                          />
-                          <Label htmlFor="viewer" className="text-xs md:text-sm">Viewer</Label>
+                          <Checkbox id="critic" checked={userRole === "critic"} onCheckedChange={() => setUserRole("critic")} />
+                          <Label htmlFor="critic" className="text-xs md:text-sm font-normal">Critic</Label>
                         </div>
                       </div>
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="terms" required />
+                      <Label htmlFor="terms" className="text-xs md:text-sm font-normal">
+                        I agree to the <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>
+                      </Label>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full"
                       disabled={isRegisterLoading}
                     >
-                      {isRegisterLoading ? "Creating account..." : "Create Account"}
+                      {isRegisterLoading ? "Creating account..." : "Create account"}
                     </Button>
                   </form>
                 </CardContent>
-                <CardFooter className="flex flex-col items-center gap-2 text-center border-t pt-4 pb-2 md:pb-4">
-                  <p className="text-xs text-muted-foreground">
-                    By creating an account, you agree to our <Link href="/terms" className="underline">Terms of Service</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>
-                  </p>
-                </CardFooter>
               </Card>
             </TabsContent>
           </Tabs>
@@ -394,5 +377,23 @@ export default function AuthPage() {
     </div>
   )
 }
+
+// Main component with Suspense boundary
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="container flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">Loading...</h2>
+          <p className="text-muted-foreground">Please wait</p>
+        </div>
+      </div>
+    }>
+      <AuthPageContent />
+    </Suspense>
+  )
+}
+
+
 
 

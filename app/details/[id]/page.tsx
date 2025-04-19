@@ -49,6 +49,9 @@ interface Comment {
   updatedAt: string
 }
 
+// Define ObjectId type to help TypeScript
+type ObjectId = string
+
 interface Review {
   _id: string
   user: {
@@ -62,7 +65,7 @@ interface Review {
   moviePoster?: string
   rating: number
   content: string
-  likes: string[]
+  likes: string[] // Using string type for likes array
   comments: Comment[]
   createdAt: string
 }
@@ -320,6 +323,7 @@ export default function MovieDetailsPage() {
     }
   }
 
+  // Handle liking/unliking a review
   const handleLikeReview = async (reviewId: string, isLiked: boolean) => {
     if (!isAuthenticated) {
       toast({
@@ -345,22 +349,25 @@ export default function MovieDetailsPage() {
         throw new Error("Failed to update like")
       }
 
-      // Update reviews state
+      // Update reviews state - safely handle the user ID
       setReviews(
         reviews.map((review) => {
           if (review._id === reviewId) {
+            // Make sure we have a valid string ID
+            const userIdString = user?._id || "";
+            
             const updatedLikes = isLiked
-              ? review.likes.filter((id: string) => id !== user?._id)
-              : [...review.likes, user?._id]
+              ? review.likes.filter((id) => id !== userIdString)
+              : [...review.likes, userIdString];
 
             return {
               ...review,
-              likes: updatedLikes,
-            }
+              likes: updatedLikes as string[], // Cast to ensure type compatibility
+            };
           }
-          return review
-        }),
-      )
+          return review;
+        })
+      );
     } catch (error) {
       console.error("Error updating like:", error)
       toast({
@@ -799,6 +806,14 @@ export default function MovieDetailsPage() {
     }
   };
 
+  // Helper function to check if a user has liked a review
+  const hasUserLiked = (likes: string[], userId: any): boolean => {
+    if (!userId) return false;
+    // Convert to string to ensure compatibility
+    const userIdStr = String(userId);
+    return likes.includes(userIdStr);
+  }
+
   if (loading) {
     return (
       <div className="w-full">
@@ -1143,10 +1158,10 @@ export default function MovieDetailsPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="gap-1"
-                                  onClick={() => handleLikeReview(review._id, review.likes.includes(user?._id))}
+                                  onClick={() => handleLikeReview(review._id, hasUserLiked(review.likes, user?._id))}
                                 >
                                   <Heart
-                                    className={`h-4 w-4 ${review.likes.includes(user?._id) ? "fill-primary text-primary" : ""}`}
+                                    className={`h-4 w-4 ${hasUserLiked(review.likes, user?._id) ? "fill-primary text-primary" : ""}`}
                                   />
                                   {review.likes.length}
                                 </Button>
