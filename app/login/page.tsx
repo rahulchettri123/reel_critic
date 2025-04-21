@@ -42,7 +42,7 @@ function AuthPageContent() {
   const [registerUsername, setRegisterUsername] = useState("")
   const [registerPassword, setRegisterPassword] = useState("")
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
-  const [userRole, setUserRole] = useState<"critic" | "viewer">("viewer")
+  const [userRole] = useState<"critic" | "viewer">("viewer") // Default to viewer
   const [isRegisterLoading, setIsRegisterLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -337,20 +337,6 @@ function AuthPageContent() {
                         required
                         autoComplete="new-password"
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm">Account Type</Label>
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="viewer" checked={userRole === "viewer"} onCheckedChange={() => setUserRole("viewer")} />
-                          <Label htmlFor="viewer" className="text-xs md:text-sm font-normal">Viewer</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox id="critic" checked={userRole === "critic"} onCheckedChange={() => setUserRole("critic")} />
-                          <Label htmlFor="critic" className="text-xs md:text-sm font-normal">Critic</Label>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
