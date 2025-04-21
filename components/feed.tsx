@@ -135,10 +135,36 @@ export function Feed({ initialReviews = [], limit: propLimit }: FeedProps) {
       fetchReviews(1, true);
     };
     
+    // Listen for immediately created reviews to show them without waiting for a refresh
+    const handleNewReviewCreated = (event: any) => {
+      const newReview = event.detail?.review;
+      if (newReview) {
+        console.log("Received new review data, adding to feed immediately:", newReview);
+        // Add the new review to the beginning of the list
+        setReviews(prevReviews => {
+          // Check if review already exists to prevent duplicates
+          const reviewExists = prevReviews.some(r => 
+            r._id === newReview._id || 
+            (r.user._id === newReview.user._id && 
+             r.content === newReview.content &&
+             r.movie === newReview.movie)
+          );
+          
+          if (reviewExists) {
+            return prevReviews;
+          }
+          
+          return [newReview, ...prevReviews];
+        });
+      }
+    };
+    
     window.addEventListener('refreshFeed', handleRefreshFeed);
+    window.addEventListener('newReviewCreated', handleNewReviewCreated);
     
     return () => {
       window.removeEventListener('refreshFeed', handleRefreshFeed);
+      window.removeEventListener('newReviewCreated', handleNewReviewCreated);
     };
   }, [fetchReviews]);
 

@@ -209,6 +209,14 @@ export async function GET(request: Request) {
         })
       )
       
+      // Create response with cache control headers
+      const headers = new Headers({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      });
+      
       return NextResponse.json({ 
         reviews: populatedReviews,
         pagination: {
@@ -217,7 +225,7 @@ export async function GET(request: Request) {
           limit,
           pages: Math.ceil(total / limit)
         }
-      })
+      }, { headers })
     } else {
       // No genre filtering needed, proceed with standard query
       // Get total count for pagination
@@ -244,6 +252,14 @@ export async function GET(request: Request) {
         })
       )
 
+      // Create response with cache control headers
+      const headers = new Headers({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+      });
+
       return NextResponse.json({ 
         reviews: populatedReviews,
         pagination: {
@@ -252,7 +268,7 @@ export async function GET(request: Request) {
           limit,
           pages: Math.ceil(total / limit)
         }
-      })
+      }, { headers })
     }
   } catch (error) {
     console.error("Error fetching reviews:", error)

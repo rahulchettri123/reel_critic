@@ -210,12 +210,59 @@ export function CreateReview({ onReviewCreated }: { onReviewCreated?: () => void
           // Callback to refresh feed
           onReviewCreated?.()
           
-          // Manually trigger a feed refresh by setting page to 1 and re-fetching
-          window.dispatchEvent(new CustomEvent('refreshFeed'));
-        }, 1000);
+          // Force multiple refreshes to ensure feed updates
+          const triggerRefresh = () => {
+            // Manually trigger a feed refresh
+            console.log("Triggering forced feed refresh");
+            window.dispatchEvent(new CustomEvent('refreshFeed'));
+            
+            // Force router navigation to refresh data
+            try {
+              const currentPath = window.location.pathname;
+              if (currentPath === '/critics' || currentPath === '/') {
+                // For immediate visual feedback, try to manually append the new review to the DOM
+                // This is a fallback in case the event doesn't trigger a proper refresh
+                const reviewData = {
+                  _id: new Date().getTime().toString(), // Temporary ID until refresh
+                  user: user,
+                  movie: selectedMovie.id,
+                  movieTitle: selectedMovie.title,
+                  moviePoster: selectedMovie.poster,
+                  rating: rating,
+                  content: reviewContent,
+                  likes: [],
+                  comments: [],
+                  createdAt: new Date().toISOString()
+                };
+                
+                // Dispatch a custom event with the review data for immediate display
+                window.dispatchEvent(new CustomEvent('newReviewCreated', {
+                  detail: { review: reviewData }
+                }));
+              }
+            } catch (err) {
+              console.error("Error during force refresh:", err);
+            }
+          };
+          
+          // Trigger refresh immediately
+          triggerRefresh();
+          
+          // And again after a short delay to ensure it catches any lazy-loaded data
+          setTimeout(triggerRefresh, 1000);
+          
+          // And one final time after a longer delay
+          setTimeout(triggerRefresh, 3000);
+        }, 500);
         
         // Remove redirection to profile
         // Stay on the current page to see the new review in the feed
+        
+        // Reset form
+        setSelectedMovie(null);
+        setRating(0);
+        setReviewContent("");
+        setSearchQuery("");
       } else {
         const data = await response.json()
         toast({
