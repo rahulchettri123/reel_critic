@@ -211,10 +211,9 @@ export async function GET(request: Request) {
       
       // Create response with cache control headers
       const headers = new Headers({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Cache-Control': 'no-cache, max-age=0, must-revalidate',
         'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
+        'Expires': '0'
       });
       
       return NextResponse.json({ 
@@ -254,10 +253,9 @@ export async function GET(request: Request) {
 
       // Create response with cache control headers
       const headers = new Headers({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Cache-Control': 'no-cache, max-age=0, must-revalidate',
         'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
+        'Expires': '0'
       });
 
       return NextResponse.json({ 

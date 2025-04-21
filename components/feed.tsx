@@ -129,17 +129,31 @@ export function Feed({ initialReviews = [], limit: propLimit }: FeedProps) {
 
   // Listen for the refreshFeed event
   useEffect(() => {
+    // Create a debounced version of fetchReviews to avoid multiple refreshes
+    let refreshTimeout: NodeJS.Timeout | null = null;
+    
+    const debouncedFetchReviews = () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      
+      refreshTimeout = setTimeout(() => {
+        console.log("Executing debounced feed refresh");
+        setPage(1);
+        fetchReviews(1, true);
+      }, 300);
+    };
+    
     const handleRefreshFeed = () => {
       console.log("Refreshing feed from custom event");
-      setPage(1);
-      fetchReviews(1, true);
+      debouncedFetchReviews();
     };
     
     // Listen for immediately created reviews to show them without waiting for a refresh
     const handleNewReviewCreated = (event: any) => {
       const newReview = event.detail?.review;
       if (newReview) {
-        console.log("Received new review data, adding to feed immediately:", newReview);
+        console.log("Received new review data, adding to feed immediately");
         // Add the new review to the beginning of the list
         setReviews(prevReviews => {
           // Check if review already exists to prevent duplicates
@@ -165,6 +179,9 @@ export function Feed({ initialReviews = [], limit: propLimit }: FeedProps) {
     return () => {
       window.removeEventListener('refreshFeed', handleRefreshFeed);
       window.removeEventListener('newReviewCreated', handleNewReviewCreated);
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
     };
   }, [fetchReviews]);
 

@@ -205,54 +205,35 @@ export function CreateReview({ onReviewCreated }: { onReviewCreated?: () => void
           }
         }));
         
-        // Add a slight delay before refreshing the feed to ensure database update propagation
+        // Add a slight delay before refreshing the feed
         setTimeout(() => {
           // Callback to refresh feed
           onReviewCreated?.()
           
-          // Force multiple refreshes to ensure feed updates
-          const triggerRefresh = () => {
-            // Manually trigger a feed refresh
-            console.log("Triggering forced feed refresh");
-            window.dispatchEvent(new CustomEvent('refreshFeed'));
-            
-            // Force router navigation to refresh data
-            try {
-              const currentPath = window.location.pathname;
-              if (currentPath === '/critics' || currentPath === '/') {
-                // For immediate visual feedback, try to manually append the new review to the DOM
-                // This is a fallback in case the event doesn't trigger a proper refresh
-                const reviewData = {
-                  _id: new Date().getTime().toString(), // Temporary ID until refresh
-                  user: user,
-                  movie: selectedMovie.id,
-                  movieTitle: selectedMovie.title,
-                  moviePoster: selectedMovie.poster,
-                  rating: rating,
-                  content: reviewContent,
-                  likes: [],
-                  comments: [],
-                  createdAt: new Date().toISOString()
-                };
-                
-                // Dispatch a custom event with the review data for immediate display
-                window.dispatchEvent(new CustomEvent('newReviewCreated', {
-                  detail: { review: reviewData }
-                }));
-              }
-            } catch (err) {
-              console.error("Error during force refresh:", err);
-            }
+          // Force a single refresh with the new review data
+          const reviewData = {
+            _id: new Date().getTime().toString(), // Temporary ID until refresh
+            user: user,
+            movie: selectedMovie.id,
+            movieTitle: selectedMovie.title,
+            moviePoster: selectedMovie.poster,
+            rating: rating,
+            content: reviewContent,
+            likes: [],
+            comments: [],
+            createdAt: new Date().toISOString()
           };
           
-          // Trigger refresh immediately
-          triggerRefresh();
+          // Dispatch a custom event with the review data for immediate display
+          window.dispatchEvent(new CustomEvent('newReviewCreated', {
+            detail: { review: reviewData }
+          }));
           
-          // And again after a short delay to ensure it catches any lazy-loaded data
-          setTimeout(triggerRefresh, 1000);
-          
-          // And one final time after a longer delay
-          setTimeout(triggerRefresh, 3000);
+          // Only trigger one network refresh after a delay
+          setTimeout(() => {
+            console.log("Triggering feed refresh");
+            window.dispatchEvent(new CustomEvent('refreshFeed'));
+          }, 1000);
         }, 500);
         
         // Remove redirection to profile
