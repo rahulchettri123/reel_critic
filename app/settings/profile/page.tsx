@@ -273,16 +273,8 @@ export default function ProfileSettings() {
               
               <div className="flex-1 space-y-4">
                 <div className="grid gap-3">
-                  <Label htmlFor="avatar">Profile Picture URL</Label>
-                  <Input
-                    id="avatar"
-                    name="avatar"
-                    placeholder="https://example.com/avatar.jpg"
-                    value={formData.avatar}
-                    onChange={handleChange}
-                  />
                   <p className="text-xs text-muted-foreground">
-                    You can click on your avatar to upload a new image, or provide a URL directly.
+                    Click on your avatar to upload a new profile picture.
                   </p>
                 </div>
               </div>

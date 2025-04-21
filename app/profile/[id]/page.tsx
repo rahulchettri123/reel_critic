@@ -25,6 +25,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 import { ProfileReviewCard } from "@/components/profile-review-card"
 import { ProfileCommentCard } from "@/components/profile-comment-card"
+import { ZoomableAvatar } from "@/components/zoomable-avatar"
 
 // Real API function to fetch user profile
 const getUserProfile = async (userId: string) => {
@@ -580,10 +581,12 @@ export default function ProfilePage() {
       <div className="space-y-8">
         {/* Profile Header */}
         <div className="flex flex-row gap-4 items-start">
-          <Avatar className="h-24 w-24 md:h-40 md:w-40 shrink-0">
-            <AvatarImage src={profile.avatar || "/placeholder.svg?height=200&width=200"} alt={profile.name || "User profile"} />
-            <AvatarFallback>{profile.name?.charAt(0) || "?"}</AvatarFallback>
-          </Avatar>
+          <ZoomableAvatar
+            src={profile.avatar || "/placeholder.svg?height=200&width=200"}
+            alt={profile.name || "User profile"}
+            fallback={profile.name?.charAt(0) || "?"}
+            className="h-24 w-24 md:h-40 md:w-40"
+          />
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-2 mb-3">
