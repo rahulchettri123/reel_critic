@@ -227,11 +227,10 @@ export function Feed({ initialReviews = [], limit: propLimit }: FeedProps) {
   }, [page, fetchReviews])
 
   const handleReviewCreated = useCallback(() => {
-    // Refresh feed from the beginning
-    console.log("Review created, refreshing feed");
-    setPage(1)
-    fetchReviews(1)
-  }, [fetchReviews])
+    // Don't refresh from network anymore - the newReviewCreated event will handle the UI update
+    console.log("Review created - immediate display will be handled by event listener");
+    // No fetch needed here
+  }, []);
 
   return (
     <div className="space-y-6">

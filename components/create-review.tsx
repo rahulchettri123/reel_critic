@@ -205,39 +205,29 @@ export function CreateReview({ onReviewCreated }: { onReviewCreated?: () => void
           }
         }));
         
-        // Add a slight delay before refreshing the feed
-        setTimeout(() => {
-          // Callback to refresh feed
-          onReviewCreated?.()
-          
-          // Force a single refresh with the new review data
-          const reviewData = {
-            _id: new Date().getTime().toString(), // Temporary ID until refresh
-            user: user,
-            movie: selectedMovie.id,
-            movieTitle: selectedMovie.title,
-            moviePoster: selectedMovie.poster,
-            rating: rating,
-            content: reviewContent,
-            likes: [],
-            comments: [],
-            createdAt: new Date().toISOString()
-          };
-          
-          // Dispatch a custom event with the review data for immediate display
-          window.dispatchEvent(new CustomEvent('newReviewCreated', {
-            detail: { review: reviewData }
-          }));
-          
-          // Only trigger one network refresh after a delay
-          setTimeout(() => {
-            console.log("Triggering feed refresh");
-            window.dispatchEvent(new CustomEvent('refreshFeed'));
-          }, 1000);
-        }, 500);
+        // Create and display the new review immediately without waiting for a server refresh
+        const reviewData = {
+          _id: new Date().getTime().toString(), // Temporary ID until refresh
+          user: user,
+          movie: selectedMovie.id,
+          movieTitle: selectedMovie.title,
+          moviePoster: selectedMovie.poster,
+          rating: rating,
+          content: reviewContent,
+          likes: [],
+          comments: [],
+          createdAt: new Date().toISOString()
+        };
         
-        // Remove redirection to profile
-        // Stay on the current page to see the new review in the feed
+        // Callback to refresh feed
+        onReviewCreated?.();
+        
+        // Dispatch a custom event with the review data for immediate display
+        // This will add the review to the feed without a network request
+        console.log("Adding review to feed immediately");
+        window.dispatchEvent(new CustomEvent('newReviewCreated', {
+          detail: { review: reviewData }
+        }));
         
         // Reset form
         setSelectedMovie(null);
