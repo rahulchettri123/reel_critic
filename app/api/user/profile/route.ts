@@ -7,17 +7,33 @@ import { ObjectId } from "mongodb"
 // GET user profile data
 export async function GET(request: Request) {
   try {
-    // Get userId from query params
+    // Get userId or username from query params
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
+    const userIdentifier = searchParams.get("userId") || searchParams.get("username")
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    if (!userIdentifier) {
+      return NextResponse.json({ error: "User ID or username is required" }, { status: 400 })
     }
 
     // Get user from database
     const usersCollection = await getCollection("users")
-    const user = await usersCollection.findOne({ _id: new ObjectId(userId) })
+    
+    // Check if the identifier is a valid ObjectId (user ID) or a username
+    let query = {}
+    try {
+      // If it's a valid ObjectId, search by _id
+      if (ObjectId.isValid(userIdentifier)) {
+        query = { _id: new ObjectId(userIdentifier) }
+      } else {
+        // Otherwise, search by username
+        query = { username: userIdentifier }
+      }
+    } catch (e) {
+      // If there's an error parsing ObjectId, assume it's a username
+      query = { username: userIdentifier }
+    }
+    
+    const user = await usersCollection.findOne(query)
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -31,17 +47,17 @@ export async function GET(request: Request) {
     
     // Get recent reviews
     const recentReviews = await reviewsCollection
-      .find({ user: new ObjectId(userId) })
+      .find({ user: new ObjectId(user._id) })
       .sort({ createdAt: -1 })
       .limit(5)
       .toArray()
 
     // Count total reviews for accurate stats
-    const reviewsCount = await reviewsCollection.countDocuments({ user: new ObjectId(userId) })
+    const reviewsCount = await reviewsCollection.countDocuments({ user: new ObjectId(user._id) })
 
     // Get review count by rating
     const ratingDistribution = await reviewsCollection.aggregate([
-      { $match: { user: new ObjectId(userId) } },
+      { $match: { user: new ObjectId(user._id) } },
       { $group: { _id: "$rating", count: { $sum: 1 } } },
       { $sort: { _id: -1 } }
     ]).toArray()
@@ -81,7 +97,7 @@ export async function GET(request: Request) {
         userProfile.stats.followingCount !== followingCount) {
       
       await usersCollection.updateOne(
-        { _id: new ObjectId(userId) },
+        { _id: new ObjectId(user._id) },
         { 
           $set: { 
             stats: userProfile.stats,

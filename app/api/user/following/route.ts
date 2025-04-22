@@ -114,19 +114,24 @@ export async function POST(request: Request) {
 // GET endpoint to fetch the users that the specified user is following
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const userId = url.searchParams.get('userId')
+  const userIdentifier = url.searchParams.get('userId') || url.searchParams.get('username')
   
-  if (!userId) {
-    return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+  if (!userIdentifier) {
+    return NextResponse.json({ error: "User ID or username is required" }, { status: 400 })
   }
 
   try {
     const usersCollection = await getCollection("users")
     
-    // First get the user's following list
-    const user = await usersCollection.findOne(
-      { _id: new ObjectId(userId) }
-    )
+    // First get the user based on ID or username
+    let query = {};
+    if (ObjectId.isValid(userIdentifier)) {
+      query = { _id: new ObjectId(userIdentifier) };
+    } else {
+      query = { username: userIdentifier };
+    }
+    
+    const user = await usersCollection.findOne(query);
     
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })

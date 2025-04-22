@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Film, Mail, User, UserPlus } from "lucide-react"
+import { Film, Mail, User, UserPlus, CheckCircle, X } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -44,6 +44,43 @@ function AuthPageContent() {
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
   const [userRole] = useState<"critic" | "viewer">("viewer") // Default to viewer
   const [isRegisterLoading, setIsRegisterLoading] = useState(false)
+
+  // Add these state variables to the component state
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+
+  // Add the username check function
+  const checkUsernameAvailability = async (username: string) => {
+    if (!username || username.length < 3) return;
+    
+    setUsernameChecking(true);
+    try {
+      const response = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+      const data = await response.json();
+      
+      setUsernameAvailable(data.available);
+      setUsernameSuggestions(data.suggestions || []);
+    } catch (error) {
+      console.error("Error checking username:", error);
+    } finally {
+      setUsernameChecking(false);
+    }
+  };
+
+  // Add debounced username check effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (registerUsername && registerUsername.length >= 3) {
+        checkUsernameAvailability(registerUsername);
+      } else {
+        setUsernameAvailable(null);
+        setUsernameSuggestions([]);
+      }
+    }, 500); // Debounce for 500ms
+    
+    return () => clearTimeout(timer);
+  }, [registerUsername]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +150,16 @@ function AuthPageContent() {
       return
     }
 
+    // Check username availability one more time before submission
+    if (usernameAvailable === false) {
+      toast({
+        title: "Registration failed",
+        description: "Username is already taken. Please choose another username.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsRegisterLoading(true)
 
     try {
@@ -127,7 +174,7 @@ function AuthPageContent() {
       if (result.success) {
         toast({
           title: "Registration successful",
-          description: "Welcome to CineVerse!",
+          description: "Welcome to ReelCritic!",
         })
         router.push("/")
       } else {
@@ -302,15 +349,47 @@ function AuthPageContent() {
 
                     <div className="space-y-1 md:space-y-2">
                       <Label htmlFor="username" className="text-sm">Username</Label>
-                      <Input
-                        id="username"
-                        type="text"
-                        placeholder="johndoe"
-                        value={registerUsername}
-                        onChange={(e) => setRegisterUsername(e.target.value)}
-                        required
-                        autoComplete="username"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="username"
+                          type="text"
+                          placeholder="johndoe"
+                          value={registerUsername}
+                          onChange={(e) => setRegisterUsername(e.target.value)}
+                          required
+                          autoComplete="username"
+                          className={`pr-10 ${
+                            usernameAvailable === true ? 'border-green-500 focus-visible:ring-green-500' :
+                            usernameAvailable === false ? 'border-red-500 focus-visible:ring-red-500' : ''
+                          }`}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {usernameChecking ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          ) : usernameAvailable === true ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : usernameAvailable === false ? (
+                            <X className="h-4 w-4 text-red-500" />
+                          ) : null}
+                        </div>
+                      </div>
+                      {usernameAvailable === false && (
+                        <div className="text-xs text-red-500 space-y-1">
+                          <p>Username already taken. Try one of these:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {usernameSuggestions.map((suggestion, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => setRegisterUsername(suggestion)}
+                                className="px-2 py-1 bg-muted rounded-md hover:bg-primary/10 text-xs"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1 md:space-y-2">
@@ -349,7 +428,7 @@ function AuthPageContent() {
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={isRegisterLoading}
+                      disabled={isRegisterLoading || usernameAvailable === false || usernameChecking}
                     >
                       {isRegisterLoading ? "Creating account..." : "Create account"}
                     </Button>

@@ -28,13 +28,9 @@ import { ProfileCommentCard } from "@/components/profile-comment-card"
 import { ZoomableAvatar } from "@/components/zoomable-avatar"
 
 // Real API function to fetch user profile
-const getUserProfile = async (userIdentifier: string) => {
+const getUserProfile = async (userId: string) => {
   try {
-    // Check if it's a potential username or ID
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(userIdentifier);
-    const queryParam = isObjectId ? 'userId' : 'username';
-    
-    const response = await fetch(`/api/user/profile?${queryParam}=${userIdentifier}`, {
+    const response = await fetch(`/api/user/profile?userId=${userId}`, {
       credentials: "include"
     })
     
@@ -157,20 +153,12 @@ export default function ProfilePage() {
     }
     
     try {
-      setFollowLoading(true)
-      
-      // Determine if the parameter is likely a username or an ID
-      const isId = /^[0-9a-fA-F]{24}$/.test(userId);
-      const payload = isId 
-        ? { targetUserId: userId }
-        : { targetUsername: userId };
-      
       const response = await fetch('/api/user/follow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ targetUserId: userId }),
         credentials: 'include'
       })
       
@@ -191,21 +179,9 @@ export default function ProfilePage() {
       } else {
         const data = await response.json()
         console.error("Follow action failed:", data.error)
-        toast({
-          title: "Action failed",
-          description: data.error || "Failed to follow/unfollow user",
-          variant: "destructive"
-        })
       }
     } catch (error) {
       console.error("Follow error:", error)
-      toast({
-        title: "Action failed",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      })
-    } finally {
-      setFollowLoading(false)
     }
   }
 
@@ -338,31 +314,55 @@ export default function ProfilePage() {
 
   // Fetch followers and following when the network tab is selected
   const handleTabSelect = async (value: string) => {
-    // If selecting a tab that needs data, load it
-    if (value === 'followers' && !followers.length) {
-      loadNetworkData('followers');
-    } else if (value === 'following' && !following.length) {
-      loadNetworkData('following');
-    } else if (value === 'favorites' && !favoriteMovies.length && profile.favorites?.length > 0) {
-      loadFavoritesData(profile.favorites);
-    } else if (value === 'watchlist' && !watchlistMovies.length && profile.watchlist?.length > 0) {
-      loadWatchlistData(profile.watchlist);
-    } else if (value === 'comments' && !userComments.length) {
-      // Load comments data
+    if ((value === "followers" || value === "following") && !loadingNetwork) {
+      setLoadingNetwork(true)
+      try {
+        if (value === "followers" && followers.length === 0) {
+          // Fetch followers
+          const followersRes = await fetch(`/api/user/followers?userId=${userId}`)
+          const followersData = await followersRes.json()
+          setFollowers(followersData.followers || [])
+        }
+        
+        if (value === "following" && following.length === 0) {
+          // Fetch following
+          const followingRes = await fetch(`/api/user/following?userId=${userId}`)
+          const followingData = await followingRes.json()
+          setFollowing(followingData.following || [])
+        }
+      } catch (error) {
+        console.error("Error fetching network data:", error)
+      } finally {
+        setLoadingNetwork(false)
+      }
+    }
+
+    // Load favorites data when tab is selected
+    if (value === "favorites") {
+      loadFavoritesData()
+    }
+
+    // Load watchlist data when tab is selected
+    if (value === "watchlist") {
+      loadWatchlistData()
+    }
+
+    // Load comments when the comments tab is selected
+    if (value === "comments" && userComments.length === 0 && !loadingComments) {
       setLoadingComments(true);
       try {
-        const response = await fetch(`/api/user/comments?userId=${profile._id}`, { 
-          credentials: 'include' 
-        });
-        const data = await response.json();
-        setUserComments(data.comments || []);
+        const response = await fetch(`/api/user/comments?userId=${userId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setUserComments(data.comments || []);
+        }
       } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error("Error fetching user comments:", error);
       } finally {
         setLoadingComments(false);
       }
     }
-  };
+  }
 
   // Handle removing a follower
   const handleRemoveFollower = async (followerId: string) => {
@@ -517,32 +517,6 @@ export default function ProfilePage() {
     );
   };
 
-  // First, let's add the function to load network data
-  const loadNetworkData = async (type: 'followers' | 'following') => {
-    if ((type === 'followers' && followers.length > 0) || 
-        (type === 'following' && following.length > 0)) {
-      return; // Data already loaded
-    }
-    
-    setLoadingNetwork(true);
-    try {
-      // Use the profile._id for API calls instead of userId from URL params
-      if (type === 'followers') {
-        const followersRes = await fetch(`/api/user/followers?userId=${profile._id}`);
-        const followersData = await followersRes.json();
-        setFollowers(followersData.followers || []);
-      } else {
-        const followingRes = await fetch(`/api/user/following?userId=${profile._id}`);
-        const followingData = await followingRes.json();
-        setFollowing(followingData.following || []);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${type} data:`, error);
-    } finally {
-      setLoadingNetwork(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="py-6 px-4 sm:px-6 md:px-8 mx-auto w-full max-w-7xl">
@@ -617,105 +591,7 @@ export default function ProfilePage() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-2 mb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl md:text-2xl font-bold">{profile.name}</h1>
-                  
-                  <div className="flex items-center gap-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className="flex items-center gap-1 text-sm hover:text-primary transition-colors"
-                          onClick={() => loadNetworkData('followers')}
-                        >
-                          <Users className="h-4 w-4" />
-                          <span>{userStats.followersCount || 0}</span>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-0 w-[240px]" align="start">
-                        <div className="p-4">
-                          <h3 className="font-medium mb-2">Followers</h3>
-                          {loadingNetwork ? (
-                            <div className="space-y-2">
-                              {Array(3).fill(0).map((_, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <Skeleton className="h-8 w-8 rounded-full" />
-                                  <div className="space-y-1 flex-1">
-                                    <Skeleton className="h-3 w-24" />
-                                    <Skeleton className="h-2 w-16" />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : followers.length > 0 ? (
-                            <div className="max-h-[300px] overflow-y-auto space-y-2">
-                              {followers.map(follower => (
-                                <Link key={follower._id} href={`/profile/${follower.username}`} className="flex items-center gap-2 hover:bg-muted p-2 rounded-md">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src={follower.avatar || "/placeholder.svg"} alt={follower.name || "User"} />
-                                    <AvatarFallback>{follower.name?.charAt(0) || "?"}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="text-sm font-medium">{follower.name}</p>
-                                    <p className="text-xs text-muted-foreground">@{follower.username}</p>
-                                  </div>
-                                </Link>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No followers yet</p>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className="flex items-center gap-1 text-sm hover:text-primary transition-colors"
-                          onClick={() => loadNetworkData('following')}
-                        >
-                          <UserCheck className="h-4 w-4" />
-                          <span>{userStats.followingCount || 0}</span>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-0 w-[240px]" align="start">
-                        <div className="p-4">
-                          <h3 className="font-medium mb-2">Following</h3>
-                          {loadingNetwork ? (
-                            <div className="space-y-2">
-                              {Array(3).fill(0).map((_, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <Skeleton className="h-8 w-8 rounded-full" />
-                                  <div className="space-y-1 flex-1">
-                                    <Skeleton className="h-3 w-24" />
-                                    <Skeleton className="h-2 w-16" />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : following.length > 0 ? (
-                            <div className="max-h-[300px] overflow-y-auto space-y-2">
-                              {following.map(followed => (
-                                <Link key={followed._id} href={`/profile/${followed.username}`} className="flex items-center gap-2 hover:bg-muted p-2 rounded-md">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage src={followed.avatar || "/placeholder.svg"} alt={followed.name || "User"} />
-                                    <AvatarFallback>{followed.name?.charAt(0) || "?"}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="text-sm font-medium">{followed.name}</p>
-                                    <p className="text-xs text-muted-foreground">@{followed.username}</p>
-                                  </div>
-                                </Link>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Not following anyone yet</p>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
+                <h1 className="text-xl md:text-2xl font-bold">{profile.name}</h1>
                 <p className="text-muted-foreground text-sm">@{profile.username}</p>
               </div>
 
@@ -887,6 +763,144 @@ export default function ProfilePage() {
               </div>
               <span className="text-xs md:text-sm text-muted-foreground">Watchlist</span>
             </Link>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex flex-col items-center px-3 py-1.5 md:px-4 md:py-2 hover:bg-muted rounded-md transition-colors">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    <span className="text-base md:text-xl font-bold">{userStats.followersCount || 0}</span>
+                </div>
+                  <span className="text-xs md:text-sm text-muted-foreground">Followers</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="center">
+                <div className="space-y-2">
+                  <h3 className="font-medium text-center pb-2 border-b">Followers</h3>
+                  <div className="space-y-2">
+                    {loadingNetwork ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-1 flex-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                  </div>
+                  </div>
+                        ))
+                      ) : followers.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">
+                          {isOwnProfile ? "You don't have any followers yet." : "This user doesn't have any followers yet."}
+                        </p>
+                      ) : (
+                        followers.map((follower) => (
+                          <div 
+                            key={follower._id}
+                            className="flex items-center gap-3 p-2 hover:bg-muted rounded-md transition-colors"
+                          >
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={follower.avatar || "/placeholder.svg"} alt={follower.name} />
+                              <AvatarFallback>{follower.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{follower.name}</div>
+                              <div className="text-xs text-muted-foreground truncate">@{follower.username}</div>
+                              {follower.bio && <div className="text-xs text-muted-foreground mt-1 truncate">{follower.bio}</div>}
+                    </div>
+                            {isOwnProfile ? (
+                              <Button size="sm" variant="outline" asChild>
+                                <Link 
+                                  href={`/profile/${follower._id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  View
+                                </Link>
+                              </Button>
+                            ) : (
+                              follower._id === currentUser?._id && (
+                                <Button size="sm" variant="outline" asChild>
+                                  <Link href="/profile">
+                                    You
+                                  </Link>
+                                </Button>
+                              )
+                            )}
+                  </div>
+                        ))
+                      )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="flex flex-col items-center px-3 py-1.5 md:px-4 md:py-2 hover:bg-muted rounded-md transition-colors">
+                  <div className="flex items-center gap-1.5">
+                    <UserCheck className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    <span className="text-base md:text-xl font-bold">{userStats.followingCount || 0}</span>
+                  </div>
+                  <span className="text-xs md:text-sm text-muted-foreground">Following</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="center">
+                <div className="space-y-2">
+                  <h3 className="font-medium text-center pb-2 border-b">Following</h3>
+                  <div className="space-y-2">
+                    {loadingNetwork ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <div key={i} className="flex items-center gap-3 p-2">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-1 flex-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      ))
+                    ) : following.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">
+                        {isOwnProfile ? "You aren't following anyone yet." : "This user isn't following anyone yet."}
+                      </p>
+                    ) : (
+                      following.map((followedUser) => (
+                        <div
+                          key={followedUser._id}
+                          className="flex items-center gap-3 p-2 hover:bg-muted rounded-md transition-colors"
+                        >
+                          <Avatar className="h-10 w-10 border">
+                            <AvatarImage src={followedUser.avatar || "/placeholder.svg"} alt={followedUser.name} />
+                            <AvatarFallback>{followedUser.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{followedUser.name}</div>
+                            <div className="text-xs text-muted-foreground truncate">@{followedUser.username}</div>
+                            {followedUser.bio && <div className="text-xs text-muted-foreground mt-1 truncate">{followedUser.bio}</div>}
+                          </div>
+                          {isOwnProfile ? (
+                            <Button size="sm" variant="outline" asChild>
+                              <Link 
+                                href={`/profile/${followedUser._id}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                View
+                              </Link>
+                            </Button>
+                          ) : (
+                            followedUser._id === currentUser?._id && (
+                              <Button size="sm" variant="outline" asChild>
+                                <Link href="/profile">
+                                  You
+                                </Link>
+                              </Button>
+                            )
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -1174,27 +1188,32 @@ export default function ProfilePage() {
                           {follower.bio && (
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{follower.bio}</p>
                           )}
-                    </div>
-                            {isOwnProfile ? (
-                              <Button size="sm" variant="outline" asChild>
-                                <Link 
-                                  href={`/profile/${follower.username}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View
-                                </Link>
-                              </Button>
+                          </div>
+                        {isOwnProfile ? (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="min-w-24"
+                            onClick={() => handleRemoveFollower(follower._id)}
+                            disabled={loadingId === follower._id}
+                          >
+                            {loadingId === follower._id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                             ) : (
-                              follower._id === currentUser?._id && (
-                                <Button size="sm" variant="outline" asChild>
-                                  <Link href="/profile">
-                                    You
-                                  </Link>
-                                </Button>
-                              )
+                              "Remove Follower"
                             )}
-                  </div>
-                        ))}
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" asChild>
+                            <Link 
+                              href={`/profile/${follower._id}`}
+                            >
+                              View Profile
+                            </Link>
+                          </Button>
+                        )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                   <div className="text-center py-8">
@@ -1231,7 +1250,7 @@ export default function ProfilePage() {
                 ) : following.length > 0 ? (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                     {following.map((follow: any) => (
-                      <div
+                      <div 
                         key={follow._id}
                         className="flex items-center gap-3 p-2 hover:bg-muted rounded-md transition-colors"
                       >
@@ -1240,40 +1259,40 @@ export default function ProfilePage() {
                           <AvatarFallback>{follow.name?.charAt(0) || "?"}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <p className="font-medium">{follow.name}</p>
-                            <p className="text-xs text-muted-foreground">@{follow.username}</p>
-                            {follow.bio && (
-                              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{follow.bio}</p>
-                            )}
-                          </div>
-                          {isAuthenticated ? (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="min-w-24"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleUnfollow(follow._id);
-                              }}
-                              disabled={loadingId === follow._id}
-                            >
-                              {loadingId === follow._id ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              ) : (
-                                "Unfollow"
-                              )}
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="outline" asChild>
-                              <Link 
-                                href={`/profile/${follow.username}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                View Profile
-                              </Link>
-                            </Button>
+                          <p className="font-medium">{follow.name}</p>
+                          <p className="text-xs text-muted-foreground">@{follow.username}</p>
+                          {follow.bio && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{follow.bio}</p>
                           )}
+                          </div>
+                        {isAuthenticated ? (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="min-w-24"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleUnfollow(follow._id);
+                            }}
+                            disabled={loadingId === follow._id}
+                          >
+                            {loadingId === follow._id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : (
+                              "Unfollow"
+                            )}
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" asChild>
+                            <Link 
+                              href={`/profile/${follow._id}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View Profile
+                            </Link>
+                          </Button>
+                        )}
                         </div>
                       ))}
                     </div>

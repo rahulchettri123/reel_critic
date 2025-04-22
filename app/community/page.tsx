@@ -183,7 +183,7 @@ export default function CommunityPage() {
                   <CardContent className="p-0">
                     <div className="p-5">
                       <div className="flex gap-4">
-                        <Link href={`/profile/${user._id}`}>
+                        <Link href={`/profile/${user.username}`}>
                           <Avatar className="h-12 w-12 border-2 border-background">
                             <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
                             <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
@@ -191,7 +191,7 @@ export default function CommunityPage() {
                         </Link>
                         <div className="flex-1 min-w-0">
                           <Link 
-                            href={`/profile/${user._id}`}
+                            href={`/profile/${user.username}`}
                             className="hover:underline font-medium line-clamp-1"
                           >
                             {user.name}
@@ -225,7 +225,7 @@ export default function CommunityPage() {
                         className="flex-1 rounded-none h-10"
                         asChild
                       >
-                        <Link href={`/profile/${user._id}`}>View Profile</Link>
+                        <Link href={`/profile/${user.username}`}>View Profile</Link>
                       </Button>
                     </div>
                   </CardContent>

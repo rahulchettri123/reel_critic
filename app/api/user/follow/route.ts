@@ -26,23 +26,31 @@ export async function POST(request: Request) {
       const currentUserId = decoded.id
       
       // Get follow action data
-      const { targetUserId } = await request.json()
+      const { targetUserId, targetUsername } = await request.json()
       
-      if (!targetUserId) {
-        return NextResponse.json({ error: "Target user ID is required" }, { status: 400 })
-      }
-      
-      // Prevent following yourself
-      if (currentUserId === targetUserId) {
-        return NextResponse.json({ error: "You cannot follow yourself" }, { status: 400 })
+      if (!targetUserId && !targetUsername) {
+        return NextResponse.json({ error: "Target user ID or username is required" }, { status: 400 })
       }
       
       const usersCollection = await getCollection("users")
       
-      // Check if target user exists
-      const targetUser = await usersCollection.findOne({ _id: new ObjectId(targetUserId) })
+      // Find target user by ID or username
+      let targetUser;
+      if (targetUserId) {
+        targetUser = await usersCollection.findOne({ _id: new ObjectId(targetUserId) });
+      } else {
+        targetUser = await usersCollection.findOne({ username: targetUsername });
+      }
+      
       if (!targetUser) {
         return NextResponse.json({ error: "Target user not found" }, { status: 404 })
+      }
+      
+      const targetUserIdStr = targetUser._id.toString();
+      
+      // Prevent following yourself
+      if (currentUserId === targetUserIdStr) {
+        return NextResponse.json({ error: "You cannot follow yourself" }, { status: 400 })
       }
       
       // Check if current user exists
@@ -56,20 +64,20 @@ export async function POST(request: Request) {
       const targetUserFollowers = Array.isArray(targetUser.followers) ? targetUser.followers : []
       
       // Check if already following
-      const isFollowing = currentUserFollowing.some(id => id.toString() === targetUserId)
+      const isFollowing = currentUserFollowing.some(id => id.toString() === targetUserIdStr)
       
       if (isFollowing) {
         // Unfollow
         await usersCollection.updateOne(
           { _id: new ObjectId(currentUserId) },
           { 
-            $pull: { following: new ObjectId(targetUserId) },
+            $pull: { following: targetUser._id },
             $set: { updatedAt: new Date() }
           }
         )
         
         await usersCollection.updateOne(
-          { _id: new ObjectId(targetUserId) },
+          { _id: targetUser._id },
           { 
             $pull: { followers: new ObjectId(currentUserId) },
             $set: { updatedAt: new Date() }
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
         )
         
         await usersCollection.updateOne(
-          { _id: new ObjectId(targetUserId) },
+          { _id: targetUser._id },
           { 
             $inc: { "stats.followersCount": -1 },
           }
@@ -101,13 +109,13 @@ export async function POST(request: Request) {
         await usersCollection.updateOne(
           { _id: new ObjectId(currentUserId) },
           { 
-            $addToSet: { following: new ObjectId(targetUserId) },
+            $addToSet: { following: targetUser._id },
             $set: { updatedAt: new Date() }
           }
         )
         
         await usersCollection.updateOne(
-          { _id: new ObjectId(targetUserId) },
+          { _id: targetUser._id },
           { 
             $addToSet: { followers: new ObjectId(currentUserId) },
             $set: { updatedAt: new Date() }
@@ -123,7 +131,7 @@ export async function POST(request: Request) {
         )
         
         await usersCollection.updateOne(
-          { _id: new ObjectId(targetUserId) },
+          { _id: targetUser._id },
           { 
             $inc: { "stats.followersCount": 1 },
           }

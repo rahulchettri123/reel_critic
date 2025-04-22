@@ -87,8 +87,8 @@ export default function Navbar() {
       {isAuthenticated ? (
         <>
           <Link
-            href={`/profile/${user?._id}`}
-            className={`text-lg font-medium ${pathname === `/profile/${user?._id}` ? "text-primary" : "text-muted-foreground"}`}
+            href={`/profile/${user?.username}`}
+            className={`text-lg font-medium ${pathname === `/profile/${user?.username}` ? "text-primary" : "text-muted-foreground"}`}
             onClick={handleNavLinkClick}
           >
             Profile
@@ -152,7 +152,7 @@ export default function Navbar() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild>
-          <Link href={`/profile/${user?._id}`}>Profile</Link>
+          <Link href={`/profile/${user?.username}`}>Profile</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/settings">Settings</Link>

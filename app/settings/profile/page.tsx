@@ -213,7 +213,7 @@ export default function ProfileSettings() {
           <p className="text-muted-foreground">Update your profile information and preferences</p>
         </div>
         <Button asChild variant="outline">
-          <Link href={`/profile/${user?._id}`}>View My Profile</Link>
+          <Link href={`/profile/${user?.username}`}>View My Profile</Link>
         </Button>
       </div>
 
@@ -553,7 +553,7 @@ export default function ProfileSettings() {
           <Button 
             type="button" 
             variant="outline" 
-            onClick={() => router.push(`/profile/${user?._id}`)}
+            onClick={() => router.push(`/profile/${user?.username}`)}
           >
             Cancel
           </Button>

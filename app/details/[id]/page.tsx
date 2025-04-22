@@ -1134,7 +1134,7 @@ export default function MovieDetailsPage() {
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
                               <div>
-                                <Link href={`/profile/${review.user?._id}`} className="font-medium hover:underline">
+                                <Link href={`/profile/${review.user?.username}`} className="font-medium hover:underline">
                                   {review.user?.name}
                                 </Link>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1262,7 +1262,7 @@ export default function MovieDetailsPage() {
                                             <div className="rounded-2xl bg-muted p-3">
                                               <div className="flex justify-between items-start">
                                                 <Link
-                                                  href={`/profile/${comment.user._id}`}
+                                                  href={`/profile/${comment.user.username}`}
                                                   className="font-medium hover:underline"
                                                 >
                                                   {comment.user.name}
@@ -1410,7 +1410,7 @@ export default function MovieDetailsPage() {
                                                           <div className="rounded-xl bg-muted p-2">
                                                             <div className="flex justify-between items-start">
                                                               <Link
-                                                                href={`/profile/${reply.user._id}`}
+                                                                href={`/profile/${reply.user.username}`}
                                                                 className="font-medium text-sm hover:underline"
                                                               >
                                                                 {reply.user.name}

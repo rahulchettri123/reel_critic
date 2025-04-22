@@ -4,18 +4,30 @@ import { ObjectId } from "mongodb"
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const userId = url.searchParams.get('userId')
+  const userIdentifier = url.searchParams.get('userId') || url.searchParams.get('username')
   
-  if (!userId) {
-    return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+  if (!userIdentifier) {
+    return NextResponse.json({ error: "User ID or username is required" }, { status: 400 })
   }
 
   try {
     const usersCollection = await getCollection("users")
     
+    // First, find the target user to get their ID
+    let targetUser;
+    if (ObjectId.isValid(userIdentifier)) {
+      targetUser = await usersCollection.findOne({ _id: new ObjectId(userIdentifier) });
+    } else {
+      targetUser = await usersCollection.findOne({ username: userIdentifier });
+    }
+    
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    
     // Find users who follow the specified user (userId is in their following array)
     const followers = await usersCollection.find(
-      { following: new ObjectId(userId) }
+      { following: targetUser._id }
     ).project({
       _id: 1,
       name: 1,

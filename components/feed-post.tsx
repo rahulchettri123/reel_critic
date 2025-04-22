@@ -614,7 +614,7 @@ export const FeedPost = memo(({ review }: FeedPostProps) => {
   return (
     <Card className="mb-4 overflow-hidden hover:shadow-md transition-shadow max-w-full">
       <CardHeader className="flex flex-row items-start gap-4 pb-2">
-        <Link href={`/profile/${review.user._id}`} className="shrink-0">
+        <Link href={`/profile/${review.user.username}`} className="shrink-0">
           <Avatar className="h-12 w-12 border-2 border-background">
             <AvatarImage src={review.user.avatar || "/placeholder.svg"} alt={review.user.name || "User avatar"} />
             <AvatarFallback>{review.user.name.charAt(0)}</AvatarFallback>
@@ -623,7 +623,7 @@ export const FeedPost = memo(({ review }: FeedPostProps) => {
         <div className="grid gap-1">
           <div className="flex items-center gap-2">
             <Link 
-              href={`/profile/${review.user._id}`} 
+              href={`/profile/${review.user.username}`} 
               className="font-medium hover:underline"
             >
               {review.user.name}
@@ -852,7 +852,7 @@ export const FeedPost = memo(({ review }: FeedPostProps) => {
                           <div className="rounded-2xl bg-muted p-3">
                             <div className="flex justify-between items-start">
                               <Link
-                                href={`/profile/${comment.user._id}`}
+                                href={`/profile/${comment.user.username}`}
                                 className="font-medium hover:underline"
                               >
                                 {comment.user.name}
@@ -1000,7 +1000,7 @@ export const FeedPost = memo(({ review }: FeedPostProps) => {
                                         <div className="rounded-xl bg-muted p-2">
                                           <div className="flex justify-between items-start">
                                             <Link
-                                              href={`/profile/${reply.user._id}`}
+                                              href={`/profile/${reply.user.username}`}
                                               className="font-medium text-sm hover:underline"
                                             >
                                               {reply.user.name}
