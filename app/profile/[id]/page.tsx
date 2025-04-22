@@ -24,7 +24,6 @@ import { User, Review } from "@/lib/types"
 import { useToast } from "@/components/ui/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 import { ProfileReviewCard } from "@/components/profile-review-card"
-import { ProfileCommentCard } from "@/components/profile-comment-card"
 import { ZoomableAvatar } from "@/components/zoomable-avatar"
 
 // Real API function to fetch user profile
@@ -89,33 +88,30 @@ export default function ProfilePage() {
   const [watchlistMovies, setWatchlistMovies] = useState<any[]>([])
   const [loadingFavorites, setLoadingFavorites] = useState(false)
   const [loadingWatchlist, setLoadingWatchlist] = useState(false)
-  const [userComments, setUserComments] = useState<any[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
-  // Check if this is the current user's profile
-  const isOwnProfile = isAuthenticated && currentUser?._id === userId
-
-  // Check for new review parameter
-  useEffect(() => {
-    const newReview = searchParams.get('newReview')
-    if (newReview === 'true') {
-      toast({
-        title: "Review Posted!",
-        description: "Your review has been successfully added to your profile.",
-        variant: "default",
-        duration: 5000,
-        action: (
-          <ToastAction altText="View Reviews">
-            <Link href="#reviews">View Reviews</Link>
-          </ToastAction>
-        ),
-      })
-      
-      // Remove the query parameter from URL to prevent showing toast on refresh
-      const newUrl = window.location.pathname
-      window.history.replaceState({}, '', newUrl)
+  // Helper function to determine if the profile is the current user's
+  const checkIfOwnProfile = (profileData: any) => {
+    if (!isAuthenticated || !currentUser || !profileData) return false;
+    
+    // Direct ID match
+    if (currentUser._id === profileData._id) return true;
+    if (currentUser._id === userId) return true;
+    
+    // Username match (case insensitive)
+    if (currentUser.username && profileData.username && 
+        currentUser.username.toLowerCase() === profileData.username.toLowerCase()) {
+      return true;
     }
-  }, [searchParams, toast])
+    
+    // Email match (case insensitive)
+    if (currentUser.email && profileData.email && 
+        currentUser.email.toLowerCase() === profileData.email.toLowerCase()) {
+      return true;
+    }
+    
+    return false;
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -123,6 +119,20 @@ export default function ProfilePage() {
       try {
         const data = await getUserProfile(userId)
         setProfile(data.profile)
+        
+        // Explicitly check if this is the current user's profile
+        if (isAuthenticated && currentUser && data.profile) {
+          const profileIsOwn = checkIfOwnProfile(data.profile);
+          
+          console.log('Setting isOwnProfile from data load:', profileIsOwn, {
+            currentUserId: currentUser._id,
+            profileId: data.profile._id,
+            requestedId: userId
+          });
+          
+          setIsOwnProfile(profileIsOwn);
+        }
+        
         // Get recent reviews from the API response
         setRecentReviews(data.recentActivity?.reviews || [])
         // Initialize following state if needed
@@ -146,9 +156,31 @@ export default function ProfilePage() {
     }
 
     if (userId) {
-    fetchUserProfile()
+      fetchUserProfile()
     }
-  }, [userId, currentUser])
+  }, [userId, currentUser, isAuthenticated])
+
+  // Check for new review parameter
+  useEffect(() => {
+    const newReview = searchParams.get('newReview')
+    if (newReview === 'true') {
+      toast({
+        title: "Review Posted!",
+        description: "Your review has been successfully added to your profile.",
+        variant: "default",
+        duration: 5000,
+        action: (
+          <ToastAction altText="View Reviews">
+            <Link href="#reviews">View Reviews</Link>
+          </ToastAction>
+        ),
+      })
+      
+      // Remove the query parameter from URL to prevent showing toast on refresh
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [searchParams, toast])
 
   const handleFollow = async () => {
     if (!isAuthenticated) {
@@ -338,29 +370,14 @@ export default function ProfilePage() {
 
   // Fetch followers and following when the network tab is selected
   const handleTabSelect = async (value: string) => {
-    // If selecting a tab that needs data, load it
-    if (value === 'followers' && !followers.length) {
+    if (value === 'followers' && !followers.length && !loadingNetwork) {
       loadNetworkData('followers');
-    } else if (value === 'following' && !following.length) {
+    } else if (value === 'following' && !following.length && !loadingNetwork) {
       loadNetworkData('following');
     } else if (value === 'favorites' && !favoriteMovies.length && profile.favorites?.length > 0) {
       loadFavoritesData(profile.favorites);
     } else if (value === 'watchlist' && !watchlistMovies.length && profile.watchlist?.length > 0) {
       loadWatchlistData(profile.watchlist);
-    } else if (value === 'comments' && !userComments.length) {
-      // Load comments data
-      setLoadingComments(true);
-      try {
-        const response = await fetch(`/api/user/comments?userId=${profile._id}`, { 
-          credentials: 'include' 
-        });
-        const data = await response.json();
-        setUserComments(data.comments || []);
-      } catch (error) {
-        console.error('Error loading comments:', error);
-      } finally {
-        setLoadingComments(false);
-      }
     }
   };
 
@@ -495,24 +512,6 @@ export default function ProfilePage() {
         review._id === reviewId 
           ? { ...review, content: newContent, rating: newRating } 
           : review
-      )
-    );
-  };
-  
-  // Handle deleting a comment from the profile page
-  const handleCommentDeleted = (commentId: string) => {
-    // Remove the comment from the list
-    setUserComments(prevComments => prevComments.filter(comment => comment._id !== commentId));
-  };
-  
-  // Handle updating a comment from the profile page
-  const handleCommentUpdated = (commentId: string, newContent: string) => {
-    // Update the comment in the list
-    setUserComments(prevComments => 
-      prevComments.map(comment => 
-        comment._id === commentId 
-          ? { ...comment, content: newContent, updatedAt: new Date().toISOString() } 
-          : comment
       )
     );
   };
@@ -720,27 +719,37 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {isOwnProfile ? (
+                {console.log(`Profile buttons rendering - isOwnProfile: ${isOwnProfile}`, {
+                  userId,
+                  currentUserId: currentUser?._id,
+                  profileUsername: profile.username,
+                  currentUsername: currentUser?.username
+                })}
+                
+                {/* Force recalculation of isOwnProfile when rendering the buttons */}
+                {(isOwnProfile || checkIfOwnProfile(profile)) ? (
                   <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={handleEditProfile}>
                       <Settings className="h-3.5 w-3.5" />
                       Edit Profile
                   </Button>
                 ) : (
-                  <Button
-                    variant={isFollowing ? "outline" : "default"}
-                    size="sm"
-                    className="gap-1 text-xs"
-                    onClick={handleFollow}
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    {isFollowing ? "Following" : "Follow"}
-                  </Button>
-                )}
-                {!isOwnProfile && isAuthenticated && (
-                <Button variant="outline" size="sm" className="gap-1 text-xs">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Message
-                </Button>
+                  <>
+                    <Button
+                      variant={isFollowing ? "outline" : "default"}
+                      size="sm"
+                      className="gap-1 text-xs"
+                      onClick={handleFollow}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      {isFollowing ? "Following" : "Follow"}
+                    </Button>
+                    {isAuthenticated && (
+                      <Button variant="outline" size="sm" className="gap-1 text-xs">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Message
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -900,10 +909,6 @@ export default function ProfilePage() {
                 <MessageSquare className="h-4 w-4" />
                 Reviews
               </TabsTrigger>
-              <TabsTrigger value="comments" className="gap-1" id="comments">
-                <MessageCircle className="h-4 w-4" />
-                Comments
-              </TabsTrigger>
               <TabsTrigger value="favorites" className="gap-1" id="favorites">
                 <Heart className="h-4 w-4" />
                 Favorites
@@ -963,47 +968,6 @@ export default function ProfilePage() {
                     </Button>
                   </div>
                 )}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Comments Tab */}
-          <TabsContent value="comments" className="space-y-6">
-            {loadingComments ? (
-              <div className="space-y-4">
-                {Array(3).fill(0).map((_, i) => (
-                  <Card key={i}>
-                    <CardHeader className="p-4 pb-2">
-                      <div className="flex items-center justify-between">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-24" />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <Skeleton className="h-12 w-full" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : userComments && userComments.length > 0 ? (
-              <div className="grid gap-4">
-                {userComments.map((comment: any) => (
-                  <ProfileCommentCard
-                    key={comment._id}
-                    comment={comment}
-                    isOwner={isOwnProfile}
-                    onCommentDeleted={handleCommentDeleted}
-                    onCommentUpdated={handleCommentUpdated}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-medium mb-2">No comments yet</h3>
-                <p className="text-muted-foreground">
-                  {isOwnProfile ? "You haven't" : `${profile.name} hasn't`} commented on any reviews yet.
-                </p>
               </div>
             )}
           </TabsContent>

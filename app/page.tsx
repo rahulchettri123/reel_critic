@@ -287,8 +287,8 @@ export default function Home() {
 
       {/* CTA Section - hidden on smaller screens for better focus on movies */}
       <section className="hidden md:block rounded-xl bg-muted p-4 md:p-6">
-        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-          <div className="space-y-4">
+        <div className="flex flex-col items-center text-center">
+          <div className="space-y-4 max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Join Our Community of Movie Critics</h2>
             <p className="text-muted-foreground">
               Create an account to share your reviews, follow other critics, and build your reputation in the film
@@ -308,20 +308,6 @@ export default function Home() {
                 <Link href="/community">Explore Community</Link>
               </Button>
             )}
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-background">
-              <p className="text-3xl font-bold">500+</p>
-              <p className="text-sm text-muted-foreground text-center">Movies Reviewed</p>
-            </div>
-            <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-background">
-              <p className="text-3xl font-bold">2K+</p>
-              <p className="text-sm text-muted-foreground text-center">Active Users</p>
-            </div>
-            <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-background">
-              <p className="text-3xl font-bold">10K+</p>
-              <p className="text-sm text-muted-foreground text-center">Reviews Written</p>
-            </div>
           </div>
         </div>
       </section>

@@ -23,6 +23,28 @@ function AuthPageContent() {
   const { login, register } = useAuth()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<"login" | "register">("login")
+  const [recentUsers, setRecentUsers] = useState<any[]>([])
+  const [loadingRecentUsers, setLoadingRecentUsers] = useState(false)
+
+  // Fetch recent users for the community showcase
+  useEffect(() => {
+    const fetchRecentUsers = async () => {
+      setLoadingRecentUsers(true)
+      try {
+        const response = await fetch('/api/user/recent?limit=5')
+        const data = await response.json()
+        if (data.success && data.users) {
+          setRecentUsers(data.users)
+        }
+      } catch (error) {
+        console.error('Error fetching recent users:', error)
+      } finally {
+        setLoadingRecentUsers(false)
+      }
+    }
+
+    fetchRecentUsers()
+  }, [])
 
   // Check for register parameter in URL
   useEffect(() => {
@@ -209,25 +231,57 @@ function AuthPageContent() {
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Film className="h-4 w-4" />
-              <span>10,000+ Movies</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <User className="h-4 w-4" />
               <span>5,000+ Critics</span>
             </div>
             <div className="flex items-center gap-1">
-              <Mail className="h-4 w-4" />
+              <User className="h-4 w-4" />
               <span>Weekly Updates</span>
             </div>
           </div>
-          <div className="relative aspect-video overflow-hidden rounded-xl">
-            <Image
-              src="/placeholder.svg?height=400&width=600"
-              alt="Movie collage"
-              width={600}
-              height={400}
-              className="object-cover"
-            />
+          
+          {/* Recently joined community members */}
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-2">Recently Joined Critics</h3>
+            <div className="flex items-center -space-x-2">
+              {loadingRecentUsers ? (
+                // Skeleton placeholders while loading
+                Array(5).fill(0).map((_, i) => (
+                  <div key={i} className="w-10 h-10 rounded-full bg-muted border-2 border-background animate-pulse"></div>
+                ))
+              ) : recentUsers.length > 0 ? (
+                // Display recent users avatars in overlapping style
+                recentUsers.map((user, index) => (
+                  <div key={user._id} className="relative group" title={user.name}>
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-background transition-transform hover:scale-110">
+                      {user.avatar ? (
+                        <Image
+                          src={user.avatar}
+                          alt={user.name || "User"}
+                          width={40}
+                          height={40}
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                          {user.name?.charAt(0) || '?'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border rounded-md px-2 py-1 text-xs whitespace-nowrap pointer-events-none">
+                      {user.name}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">Loading community members...</div>
+              )}
+              
+              {recentUsers.length > 0 && (
+                <div className="ml-2 text-sm text-muted-foreground">
+                  <span>+ many more critics</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -238,6 +292,51 @@ function AuthPageContent() {
               <span className="text-brand-red">Reel</span>Critic
             </span>
           </Link>
+        </div>
+
+        {/* Mobile version of recently joined */}
+        <div className="md:hidden mb-6">
+          <h3 className="text-sm font-semibold mb-2 text-center">Recently Joined Critics</h3>
+          <div className="flex items-center justify-center -space-x-2">
+            {loadingRecentUsers ? (
+              // Skeleton placeholders while loading
+              Array(5).fill(0).map((_, i) => (
+                <div key={i} className="w-10 h-10 rounded-full bg-muted border-2 border-background animate-pulse"></div>
+              ))
+            ) : recentUsers.length > 0 ? (
+              // Display recent users avatars in overlapping style
+              recentUsers.map((user, index) => (
+                <div key={user._id} className="relative group" title={user.name}>
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-background transition-transform hover:scale-110">
+                    {user.avatar ? (
+                      <Image
+                        src={user.avatar}
+                        alt={user.name || "User"}
+                        width={40}
+                        height={40}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                        {user.name?.charAt(0) || '?'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border rounded-md px-2 py-1 text-xs whitespace-nowrap pointer-events-none">
+                    {user.name}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">Loading community members...</div>
+            )}
+            
+            {recentUsers.length > 0 && (
+              <div className="ml-2 text-sm text-muted-foreground">
+                <span>+ many more critics</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col justify-center">
