@@ -135,7 +135,17 @@ export async function GET(request: NextRequest) {
                 
                 // If title is still null, search anywhere we can find a title
                 if (!title && movie.id) {
-                  title = `Movie ID: ${movie.id}`;
+                  // Debug output to help diagnose title extraction issues
+                  console.log(`⚠️ Title extraction failed for movie ID: ${movie.id}, raw object:`, JSON.stringify(movie));
+                  
+                  // Try to build a fallback title from any available information
+                  if (movie.url && movie.url.includes('/title/')) {
+                    const titleMatch = movie.url.match(/\/title\/([^/]+)/);
+                    title = titleMatch ? `Movie ID: ${titleMatch[1]}` : `Movie ID: ${movie.id}`;
+                  } else {
+                    title = `Movie ID: ${movie.id}`;
+                  }
+                  
                   console.warn(`No title found for movie ID: ${movie.id}, using ID as placeholder`);
                 }
                 

@@ -45,6 +45,7 @@ export function MovieCarousel({
   const [currentPage, setCurrentPage] = useState(0)
   const [touchStartX, setTouchStartX] = useState(0)
   const [isTouching, setIsTouching] = useState(false)
+  const [touchDelta, setTouchDelta] = useState(0)
   
   // Responsive items per view based on screen size
   const [responsiveItemsPerView, setResponsiveItemsPerView] = useState(itemsPerView)
@@ -91,6 +92,20 @@ export function MovieCarousel({
     checkScrollButtons()
   }, [currentPage, totalPages])
 
+  // Set up auto-scroll if enabled
+  useEffect(() => {
+    if (autoScroll && totalPages > 1) {
+      const interval = setInterval(() => {
+        setCurrentPage((prevPage) => {
+          const nextPage = (prevPage + 1) % totalPages;
+          return nextPage;
+        });
+      }, 5000); // Auto-scroll every 5 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [autoScroll, totalPages]);
+
   const scroll = (direction: "left" | "right") => {
     if (direction === "left" && currentPage > 0) {
       setCurrentPage(prevPage => prevPage - 1)
@@ -103,6 +118,7 @@ export function MovieCarousel({
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX)
     setIsTouching(true)
+    setTouchDelta(0)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -110,6 +126,7 @@ export function MovieCarousel({
     
     const touchCurrentX = e.touches[0].clientX
     const diff = touchStartX - touchCurrentX
+    setTouchDelta(diff)
     
     // Prevent default to avoid page scrolling while swiping
     if (Math.abs(diff) > 5) {
@@ -135,6 +152,7 @@ export function MovieCarousel({
     }
     
     setIsTouching(false)
+    setTouchDelta(0)
   }
 
   // Format release date to "Coming MMM DD, YYYY"
@@ -155,11 +173,34 @@ export function MovieCarousel({
 
   // Calculate the transform style for smooth sliding
   const getTransformStyle = () => {
+    // Add a small drag effect during touch
+    const dragOffset = isTouching ? -touchDelta / (carouselRef.current?.offsetWidth || 1000) * 100 : 0;
+    
+    // Limit the drag offset to not exceed one page
+    const limitedDragOffset = Math.max(
+      -100 * (1 - currentPage), 
+      Math.min(dragOffset, 100 * (totalPages - currentPage - 1))
+    );
+    
     return {
-      transform: `translateX(-${currentPage * 100}%)`,
-      transition: 'transform 0.4s ease-in-out'
+      transform: `translateX(calc(-${currentPage * 100}% + ${limitedDragOffset}px))`,
+      transition: isTouching ? 'none' : 'transform 0.4s ease-out'
     }
   }
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        scroll('left');
+      } else if (e.key === 'ArrowRight') {
+        scroll('right');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canScrollLeft, canScrollRight]);
 
   return (
     <div className={cn("relative group", className)}>
@@ -179,10 +220,12 @@ export function MovieCarousel({
             variant="ghost"
             className={cn(
               "h-7 w-7 md:h-8 md:w-8 rounded-full transition-all",
-              !canScrollLeft && "opacity-50 cursor-not-allowed"
+              !canScrollLeft && "opacity-50 cursor-not-allowed",
+              "opacity-0 group-hover:opacity-100 focus:opacity-100"
             )}
             onClick={() => scroll("left")}
             disabled={!canScrollLeft}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
             <span className="sr-only">Previous page</span>
@@ -193,10 +236,12 @@ export function MovieCarousel({
             variant="ghost"
             className={cn(
               "h-7 w-7 md:h-8 md:w-8 rounded-full transition-all",
-              !canScrollRight && "opacity-50 cursor-not-allowed"
+              !canScrollRight && "opacity-50 cursor-not-allowed",
+              "opacity-0 group-hover:opacity-100 focus:opacity-100"
             )}
             onClick={() => scroll("right")}
             disabled={!canScrollRight}
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
             <span className="sr-only">Next page</span>
@@ -207,13 +252,13 @@ export function MovieCarousel({
       {/* Carousel container with touch handlers */}
       <div 
         ref={carouselRef}
-        className="overflow-hidden pb-4"
+        className="overflow-hidden pb-4 relative"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <div 
-          className="flex"
+          className="flex transition-all"
           style={getTransformStyle()}
         >
           {movies.map((movie) => (
@@ -251,38 +296,96 @@ export function MovieCarousel({
                     </p>
                   </div>
                 )}
-                
-                {/* Rating badge */}
-                {movie.localRating && movie.localRating.count > 0 && (
-                  <div className="absolute top-2 right-2 bg-black/60 rounded-md px-1.5 py-1 flex items-center">
-                    <Star className="h-3 w-3 text-primary fill-primary mr-0.5" />
-                    <span className="text-xs text-white font-medium">{movie.localRating.average}/5</span>
-                  </div>
-                )}
               </div>
               
               <div className="mt-2">
-                <h3 className="font-medium text-sm line-clamp-1 group-hover/card:text-primary transition-colors">
-                  {movie.title}
+                <h3 className="font-medium line-clamp-1 group-hover/card:text-primary text-sm md:text-base">
+                  {movie.title || "Untitled Movie"}
                 </h3>
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <span>{movie.year || "Coming Soon"}</span>
-                </div>
                 
-                {showBadges && movie.genres && movie.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1 max-w-full overflow-hidden">
-                    {movie.genres.slice(0, 2).map((genre, i) => (
-                      <Badge key={i} variant="outline" className="px-1 text-[10px] h-4 truncate">
-                        {genre}
+                {showBadges && (
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    {/* Year badge */}
+                    {movie.year && (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                        {movie.year}
                       </Badge>
-                    ))}
+                    )}
+                    
+                    {/* IMDB rating badge */}
+                    {movie.rating && (
+                      <Badge className="bg-yellow-500 text-[10px] px-1 py-0 h-4 flex items-center gap-0.5">
+                        <Star className="h-2 w-2 fill-current" />
+                        {movie.rating}
+                      </Badge>
+                    )}
+                    
+                    {/* Our site rating badge */}
+                    {movie.localRating && movie.localRating.count > 0 && (
+                      <Badge className="bg-primary text-[10px] px-1 py-0 h-4 flex items-center gap-0.5">
+                        <Star className="h-2 w-2 fill-current" />
+                        {movie.localRating.average.toFixed(1)}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
             </Link>
           ))}
         </div>
+        
+        {/* Navigation indicators for mobile */}
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-1 mt-4">
+            {Array.from({ length: totalPages }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentPage(index)}
+                className={cn(
+                  "w-2 h-2 rounded-full transition-all",
+                  currentPage === index 
+                    ? "bg-primary w-4" 
+                    : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                )}
+                aria-label={`Go to page ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
+      
+      {/* Left and right edge navigation buttons for larger screens, always visible on hover */}
+      {totalPages > 1 && (
+        <>
+          <Button
+            size="icon"
+            variant="secondary"
+            className={cn(
+              "absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-90 transition-opacity",
+              !canScrollLeft && "hidden"
+            )}
+            onClick={() => scroll("left")}
+            disabled={!canScrollLeft}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            size="icon"
+            variant="secondary"
+            className={cn(
+              "absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-90 transition-opacity",
+              !canScrollRight && "hidden"
+            )}
+            onClick={() => scroll("right")}
+            disabled={!canScrollRight}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </>
+      )}
     </div>
   )
 }
