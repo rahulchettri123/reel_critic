@@ -124,34 +124,28 @@ export function MovieCarousel({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isTouching) return
     
-    const touchCurrentX = e.touches[0].clientX
-    const diff = touchStartX - touchCurrentX
-    setTouchDelta(diff)
-    
-    // Prevent default to avoid page scrolling while swiping
-    if (Math.abs(diff) > 5) {
-      e.preventDefault()
-    }
+    const currentX = e.touches[0].clientX
+    const delta = touchStartX - currentX
+    setTouchDelta(delta)
   }
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = () => {
     if (!isTouching) return
     
-    const touchEndX = e.changedTouches[0].clientX
-    const diff = touchStartX - touchEndX
+    setIsTouching(false)
     
-    // If swipe distance is significant enough (40px)
-    if (Math.abs(diff) > 40) {
-      if (diff > 0 && canScrollRight) {
-        // Swiped left, go right
-        scroll("right")
-      } else if (diff < 0 && canScrollLeft) {
-        // Swiped right, go left
-        scroll("left")
-      }
+    // If swipe distance is significant, trigger page change
+    const threshold = 50 // Minimum swipe distance in pixels to trigger a change
+    
+    if (touchDelta > threshold && canScrollRight) {
+      // Swiped left, move to next page
+      scroll("right")
+    } else if (touchDelta < -threshold && canScrollLeft) {
+      // Swiped right, move to previous page
+      scroll("left")
     }
     
-    setIsTouching(false)
+    // Reset touch delta after handling swipe
     setTouchDelta(0)
   }
 
@@ -173,18 +167,30 @@ export function MovieCarousel({
 
   // Calculate the transform style for smooth sliding
   const getTransformStyle = () => {
-    // Add a small drag effect during touch
-    const dragOffset = isTouching ? -touchDelta / (carouselRef.current?.offsetWidth || 1000) * 100 : 0;
-    
-    // Limit the drag offset to not exceed one page
-    const limitedDragOffset = Math.max(
-      -100 * (1 - currentPage), 
-      Math.min(dragOffset, 100 * (totalPages - currentPage - 1))
-    );
+    // Include touch delta when actively touching for interactive feel
+    if (isTouching) {
+      const baseTransform = currentPage * 100
+      const touchPercentage = (touchDelta / (carouselRef.current?.offsetWidth || 1)) * 100
+      
+      // Limit drag when at the beginning or end
+      if ((currentPage === 0 && touchDelta < 0) || 
+          (currentPage === totalPages - 1 && touchDelta > 0)) {
+        // Provide resistance at the edges (divide by 2.5 for less resistance)
+        return {
+          transform: `translateX(-${baseTransform + touchPercentage / 2.5}%)`,
+          transition: 'none' // No transition during active touch
+        }
+      }
+      
+      return {
+        transform: `translateX(-${baseTransform + touchPercentage}%)`,
+        transition: 'none' // No transition during active touch
+      }
+    }
     
     return {
-      transform: `translateX(calc(-${currentPage * 100}% + ${limitedDragOffset}px))`,
-      transition: isTouching ? 'none' : 'transform 0.4s ease-out'
+      transform: `translateX(-${currentPage * 100}%)`,
+      transition: 'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)'
     }
   }
 
@@ -252,13 +258,14 @@ export function MovieCarousel({
       {/* Carousel container with touch handlers */}
       <div 
         ref={carouselRef}
-        className="overflow-hidden pb-4 relative"
+        className="overflow-hidden pb-4 relative touch-pan-y"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div 
-          className="flex transition-all"
+          className="flex transition-all will-change-transform"
           style={getTransformStyle()}
         >
           {movies.map((movie) => (
@@ -312,14 +319,6 @@ export function MovieCarousel({
                       </Badge>
                     )}
                     
-                    {/* IMDB rating badge */}
-                    {movie.rating && (
-                      <Badge className="bg-yellow-500 text-[10px] px-1 py-0 h-4 flex items-center gap-0.5">
-                        <Star className="h-2 w-2 fill-current" />
-                        {movie.rating}
-                      </Badge>
-                    )}
-                    
                     {/* Our site rating badge */}
                     {movie.localRating && movie.localRating.count > 0 && (
                       <Badge className="bg-primary text-[10px] px-1 py-0 h-4 flex items-center gap-0.5">
@@ -354,15 +353,15 @@ export function MovieCarousel({
         )}
       </div>
       
-      {/* Left and right edge navigation buttons for larger screens, always visible on hover */}
+      {/* Left and right edge navigation buttons - always visible now, especially for mobile */}
       {totalPages > 1 && (
         <>
           <Button
             size="icon"
             variant="secondary"
             className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-90 transition-opacity",
-              !canScrollLeft && "hidden"
+              "absolute left-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full transition-opacity shadow-md bg-background/80 hover:bg-background md:opacity-0 md:group-hover:opacity-100",
+              !canScrollLeft && "opacity-40 cursor-not-allowed"
             )}
             onClick={() => scroll("left")}
             disabled={!canScrollLeft}
@@ -375,8 +374,8 @@ export function MovieCarousel({
             size="icon"
             variant="secondary"
             className={cn(
-              "absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-90 transition-opacity",
-              !canScrollRight && "hidden"
+              "absolute right-1 top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full transition-opacity shadow-md bg-background/80 hover:bg-background md:opacity-0 md:group-hover:opacity-100",
+              !canScrollRight && "opacity-40 cursor-not-allowed"
             )}
             onClick={() => scroll("right")}
             disabled={!canScrollRight}
@@ -389,4 +388,5 @@ export function MovieCarousel({
     </div>
   )
 }
+
 
