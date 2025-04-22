@@ -106,18 +106,22 @@ export async function GET(request: NextRequest) {
   const id = searchParams.get("id")
   const forceRefresh = searchParams.get("refresh") === "true"
 
+  // Enhanced logging for debugging
+  console.log(`[/api/movies/details] Request with ID: "${id}"${forceRefresh ? " (force refresh)" : ""}`)
+
   if (!id) {
+    console.error("[/api/movies/details] No movie ID provided")
     return NextResponse.json({ error: "Movie ID is required" }, { status: 400 })
   }
   
-  // Validate movie ID format
+  // Validate movie ID format more strictly
   const isValidMovieId = /^tt\d{7,9}$/.test(id);
   if (!isValidMovieId) {
-    console.warn(`Invalid movie ID format: ${id}, generating fallback response`)
+    console.warn(`[/api/movies/details] Invalid movie ID format: "${id}", generating fallback response`)
     return NextResponse.json({ 
       movie: {
-        id,
-        title: `Movie ${id}`,
+        id, // Important: use the requested ID even for fallbacks
+        title: `Invalid Movie ID: ${id}`,
         poster: `/placeholder.svg?height=450&width=300&text=${encodeURIComponent(id)}`,
         backdrop: `/placeholder.svg?height=400&width=1000&text=${encodeURIComponent(id)}`,
         year: "Unknown",
@@ -127,12 +131,13 @@ export async function GET(request: NextRequest) {
         cast: [],
         genres: [],
         description: "This movie ID is invalid or does not exist in our database.",
-        type: "movie"
+        type: "movie",
+        invalid: true
       }
     })
   }
 
-  console.log(`Processing request for movie ID: ${id}${forceRefresh ? " (with force refresh)" : ""}`)
+  console.log(`[/api/movies/details] Processing request for movie ID: "${id}"${forceRefresh ? " (with force refresh)" : ""}`)
 
   const API_KEY = process.env.RAPIDAPI_KEY
   const API_HOST = process.env.RAPIDAPI_HOST
@@ -326,6 +331,13 @@ export async function GET(request: NextRequest) {
           if (fallbackMovie) {
             console.log("✅ Using fallback data for:", fallbackMovie.title)
             movieDataFromAPI = fallbackMovie
+            
+            // Double-check that the fallback ID matches the requested ID
+            if (movieDataFromAPI.id !== id) {
+              console.error(`⚠️ Fallback returned wrong ID: expected ${id}, got ${movieDataFromAPI.id}`);
+              // Ensure the ID is correct
+              movieDataFromAPI.id = id;
+            }
           }
         }
       } catch (error) {
@@ -335,6 +347,19 @@ export async function GET(request: NextRequest) {
     } else {
       console.log("⚠️ API credentials missing or invalid")
     }
+  }
+
+  // Before returning any response, validate that the movie ID matches the requested ID
+  if (movieDataFromAPI && movieDataFromAPI.id !== id) {
+    console.error(`⚠️ API data has incorrect ID: expected ${id}, got ${movieDataFromAPI.id}`);
+    // Force the correct ID
+    movieDataFromAPI.id = id;
+  }
+  
+  if (movieDataFromDB && movieDataFromDB.id !== id) {
+    console.error(`⚠️ DB data has incorrect ID: expected ${id}, got ${movieDataFromDB.id}`);
+    // Force the correct ID
+    movieDataFromDB.id = id;
   }
 
   // 3. Update DB with API data if available

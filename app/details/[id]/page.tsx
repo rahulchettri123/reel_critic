@@ -112,10 +112,33 @@ export default function MovieDetailsPage() {
       setIsRefreshing(true)
     }
 
+    if (!movieId || typeof movieId !== 'string' || !movieId.trim()) {
+      console.error("Invalid movie ID:", movieId);
+      setError("Invalid movie ID provided");
+      setLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
+
     try {
       console.log(`Fetching details for movie ID: ${movieId}${refresh ? " (with refresh)" : ""}`)
-      const response = await fetch(`/api/movies/details?id=${movieId}${refresh ? "&refresh=true" : ""}`, {
+      
+      // Use absolute URL when in production to avoid proxy issues
+      let url = `/api/movies/details?id=${encodeURIComponent(movieId)}${refresh ? "&refresh=true" : ""}`;
+      
+      // Check if we're in a deployed environment where relative URLs might be problematic
+      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        const baseUrl = window.location.origin;
+        url = `${baseUrl}${url}`;
+        console.log("Using absolute URL in production:", url);
+      }
+      
+      const response = await fetch(url, {
         credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       })
 
       if (!response.ok) {
@@ -126,6 +149,15 @@ export default function MovieDetailsPage() {
       console.log("Movie data received:", data)
       
       if (data.movie) {
+        // Verify that the returned movie ID matches what we requested
+        if (data.movie.id !== movieId) {
+          console.error("⚠️ API returned wrong movie! Requested:", movieId, "Received:", data.movie.id);
+          setError(`Incorrect movie data returned (got ${data.movie.id} instead of ${movieId})`);
+          setLoading(false);
+          setIsRefreshing(false);
+          return;
+        }
+        
         console.log("Movie data received:", data.movie)
         setMovie(data.movie)
 
