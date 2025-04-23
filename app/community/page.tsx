@@ -218,16 +218,6 @@ export default function CommunityPage() {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex border-t">
-                      <Button 
-                        variant="ghost" 
-                        className="flex-1 rounded-none h-10"
-                        asChild
-                      >
-                        <Link href={`/profile/${user.username}`}>View Profile</Link>
-                      </Button>
-                    </div>
                   </CardContent>
                 </Card>
               ))}

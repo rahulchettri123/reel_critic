@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCollection } from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 
 export async function GET(request: Request) {
   try {
@@ -10,73 +11,65 @@ export async function GET(request: Request) {
     // Get users collection
     const usersCollection = await getCollection("users")
     
-    // Find users with basic info and calculated stats
-    const usersAggregation = await usersCollection.aggregate([
-      {
-        $project: {
-          _id: 1,
-          name: 1,
-          username: 1,
-          avatar: 1,
-          bio: 1,
-          createdAt: 1,
-          favorites: 1,
-          watchlist: 1,
-          updatedAt: 1
-        }
-      },
-      {
-        $lookup: {
-          from: "reviews",
-          localField: "_id",
-          foreignField: "user._id",
-          as: "reviews"
-        }
-      },
-      {
-        $lookup: {
-          from: "followers",
-          localField: "_id",
-          foreignField: "followedId",
-          as: "followers"
-        }
-      },
-      {
-        $lookup: {
-          from: "followers",
-          localField: "_id",
-          foreignField: "followerId",
-          as: "following"
-        }
-      },
-      {
-        $addFields: {
-          "stats.reviewsCount": { $size: "$reviews" },
-          "stats.followersCount": { $size: "$followers" },
-          "stats.followingCount": { $size: "$following" }
-        }
-      },
-      {
-        $project: {
-          reviews: 0,  // Remove the full reviews array
-          followers: 0, // Remove the full followers array
-          following: 0, // Remove the full following array
-          password: 0,  // Ensure password is not included
-          email: 0,     // Don't expose emails
-          favorites: 0, // Don't need these for the list
-          watchlist: 0  // Don't need these for the list
-        }
-      },
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit }
-    ]).toArray()
+    // Find users with basic info
+    const users = await usersCollection.find({}, {
+      projection: {
+        _id: 1,
+        name: 1,
+        username: 1,
+        avatar: 1,
+        bio: 1,
+        createdAt: 1,
+        followers: 1,
+        following: 1,
+        stats: 1
+      }
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .toArray();
+    
+    // Get reviews collection
+    const reviewsCollection = await getCollection("reviews");
+    
+    // Process each user to ensure stats are properly calculated
+    const usersWithStats = await Promise.all(users.map(async (user) => {
+      // Count reviews for this user
+      const reviewsCount = await reviewsCollection.countDocuments({ 
+        "user": new ObjectId(user._id)
+      });
+      
+      // Count followers if the array exists, otherwise default to 0
+      const followersCount = Array.isArray(user.followers) ? user.followers.length : 0;
+      
+      // Count following if the array exists, otherwise default to 0
+      const followingCount = Array.isArray(user.following) ? user.following.length : 0;
+      
+      // Create or update the stats object
+      const stats = {
+        reviewsCount,
+        followersCount,
+        followingCount
+      };
+      
+      // Return the user with updated stats
+      return {
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatar,
+        bio: user.bio,
+        createdAt: user.createdAt,
+        stats
+      };
+    }));
     
     // Count total users for pagination
     const totalUsers = await usersCollection.countDocuments()
     
     return NextResponse.json({ 
-      users: usersAggregation,
+      users: usersWithStats,
       pagination: {
         total: totalUsers,
         limit,
