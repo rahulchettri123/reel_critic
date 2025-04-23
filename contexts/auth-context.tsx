@@ -126,18 +126,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true)
+      
+      // Clear the user state immediately
+      setUser(null)
+      
+      // Call logout endpoint to clear cookies
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache"
+        }
       })
       
-      setUser(null)
+      // Add a short delay to ensure cookies are properly cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 100);
+      // Clear any local storage items that might contain user data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('lastHomeVisit');
+        // Clear any other auth-related items you might have
+        sessionStorage.clear();
+      }
+      
+      console.log("Logout complete, redirecting to login page");
+      
+      // Use router for navigation when possible, but fallback to window.location
+      // for more aggressive page refresh that ensures clean state
+      window.location.href = "/login?logout=true";
     } catch (error) {
       console.error("Logout error:", error)
+      
+      // Force redirect even if there was an error
+      window.location.href = "/login?logout=true";
     } finally {
       setIsLoading(false)
     }

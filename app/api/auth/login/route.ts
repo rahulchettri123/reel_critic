@@ -70,20 +70,28 @@ export async function POST(request: Request) {
       { status: 200 }
     )
 
-    // Configure cookie for local development (important)
-    // In development, ensure cookies work properly between different ports
+    // Determine if we're in production mode
+    const isProduction = process.env.NODE_ENV === "production";
+    console.log(`Login environment: ${isProduction ? "production" : "development"}`);
+
+    // Configure cookie with environment-specific settings
     response.cookies.set({
       name: "token",
       value: token,
       httpOnly: true,
-      secure: false, // Set to false even in production for now to debug
-      sameSite: "lax",
+      secure: isProduction, // Only use secure in production
+      sameSite: isProduction ? "none" : "lax", // Use 'none' in production for cross-site cookies
       maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
       path: "/",
     })
 
-    console.log(`Cookie set for user: ${email}, cookie length: ${token.length}`)
-    console.log(`Cookie properties: httpOnly=true, secure=false, sameSite=lax, path=/, maxAge=${7 * 24 * 60 * 60}`)
+    // Log cookie settings for debugging
+    console.log(`Cookie set for user: ${email}, cookie length: ${token.length}`);
+    console.log(`Cookie properties: httpOnly=true, secure=${isProduction}, sameSite=${isProduction ? "none" : "lax"}, path=/, maxAge=${7 * 24 * 60 * 60}`);
+    
+    // Set cache control headers
+    response.headers.set("Cache-Control", "no-store, private");
+    
     return response
   } catch (error) {
     console.error("Login error:", error)
